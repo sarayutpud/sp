@@ -65,16 +65,7 @@ export async function exportGameExcel(
   wb.creator = "SP Courtside";
 
   const box = wb.addWorksheet("Box Score");
-  box.addRow([
-    "PlayerId",
-    "PTS",
-    "FGM",
-    "FGA",
-    "3PM",
-    "3PA",
-    "FTM",
-    "FTA",
-  ]);
+  box.addRow(["PlayerId", "PTS", "FGM", "FGA", "3PM", "3PA", "FTM", "FTA"]);
   for (const [playerId, line] of boxFromEvents(events)) {
     box.addRow([
       playerId,

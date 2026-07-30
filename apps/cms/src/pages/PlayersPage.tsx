@@ -91,7 +91,9 @@ export function PlayersPage() {
 
       <div className="grid-2">
         <section className="panel">
-          <h2>{editing ? "แก้ไขผู้เล่น" : "เพิ่มผู้เล่น"} — {teamName}</h2>
+          <h2>
+            {editing ? "แก้ไขผู้เล่น" : "เพิ่มผู้เล่น"} — {teamName}
+          </h2>
           <form
             className="stack"
             onSubmit={(e) => {
@@ -148,47 +150,49 @@ export function PlayersPage() {
           {players.isError && (
             <p className="err">{(players.error as Error).message}</p>
           )}
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>เบอร์</th>
-                <th>ชื่อ</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {(players.data ?? []).map((p) => (
-                <tr key={p.id}>
-                  <td>{p.jersey_number ?? "—"}</td>
-                  <td>{p.display_name}</td>
-                  <td className="actions">
-                    <button
-                      type="button"
-                      className="btn tiny"
-                      onClick={() => {
-                        setEditing(p);
-                        setName(p.display_name);
-                        setJersey(p.jersey_number ?? "");
-                      }}
-                    >
-                      แก้ไข
-                    </button>
-                    <button
-                      type="button"
-                      className="btn tiny danger"
-                      onClick={() => {
-                        if (window.confirm(`ลบ ${p.display_name}?`)) {
-                          delMut.mutate(p.id);
-                        }
-                      }}
-                    >
-                      ลบ
-                    </button>
-                  </td>
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>เบอร์</th>
+                  <th>ชื่อ</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(players.data ?? []).map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.jersey_number ?? "—"}</td>
+                    <td>{p.display_name}</td>
+                    <td className="actions">
+                      <button
+                        type="button"
+                        className="btn tiny"
+                        onClick={() => {
+                          setEditing(p);
+                          setName(p.display_name);
+                          setJersey(p.jersey_number ?? "");
+                        }}
+                      >
+                        แก้ไข
+                      </button>
+                      <button
+                        type="button"
+                        className="btn tiny danger"
+                        onClick={() => {
+                          if (window.confirm(`ลบ ${p.display_name}?`)) {
+                            delMut.mutate(p.id);
+                          }
+                        }}
+                      >
+                        ลบ
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       </div>
     </div>

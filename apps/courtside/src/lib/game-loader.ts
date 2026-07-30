@@ -1,11 +1,11 @@
-import type { LocalStore } from "./local-store";
 import {
+  type GameListItem,
   cacheGames,
   cacheRoster,
-  type GameListItem,
   loadCachedGames,
   loadCachedRoster,
 } from "./game-session";
+import type { LocalStore } from "./local-store";
 import { supabase } from "./supabase";
 
 type TeamRow = { id: string; name: string; short_name: string | null };
@@ -141,9 +141,7 @@ export async function fetchGames(
 
   if (teamsError) throw teamsError;
 
-  const teamMap = new Map(
-    ((teams ?? []) as TeamRow[]).map((t) => [t.id, t]),
-  );
+  const teamMap = new Map(((teams ?? []) as TeamRow[]).map((t) => [t.id, t]));
   const list = rows
     .map((g) => toGameListItem(g, teamMap))
     .filter((g): g is GameListItem => g !== null);
