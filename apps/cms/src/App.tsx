@@ -51,7 +51,15 @@ export function App() {
     setAuthMsg("");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
-    if (error) setAuthMsg(error.message);
+    if (error) {
+      if (error.message.toLowerCase().includes("invalid login credentials")) {
+        setAuthMsg("อีเมลหรือรหัสผ่านไม่ถูกต้อง — ใช้ sp@test.com / sptest");
+      } else if (error.message.toLowerCase().includes("email not confirmed")) {
+        setAuthMsg("อีเมลยังไม่ยืนยัน — ติดต่อผู้ดูแลระบบ");
+      } else {
+        setAuthMsg(error.message);
+      }
+    }
   }
 
   async function onSignUp(e: FormEvent) {
@@ -119,6 +127,7 @@ export function App() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="sp@test.com"
                 required
               />
             </label>
