@@ -807,6 +807,63 @@ textarea {
   color: var(--navy);
 }
 
+/* Shot chart */
+.shotchart-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 1fr);
+  gap: 1.15rem;
+  align-items: start;
+}
+
+.shotchart-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.zone-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.zone-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  background: #c7cbe6;
+  flex: none;
+  border: 1px solid rgba(15, 22, 84, 0.15);
+}
+
+.legend-dot.hot {
+  background: rgba(27, 143, 90, 0.85);
+}
+
+.legend-dot.warm {
+  background: rgba(244, 180, 0, 0.9);
+}
+
+.legend-dot.cold {
+  background: rgba(229, 57, 53, 0.85);
+}
+
+@media (max-width: 720px) {
+  .shotchart-wrap {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ------- Responsive / mobile web ------- */
 @media (max-width: 900px) {
   .app-body {
