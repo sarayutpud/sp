@@ -48,6 +48,22 @@ npx pnpm@9.15.0 --filter @sp/courtside tauri:dev
 API จะซิงก์ขึ้น Supabase อัตโนมัติถ้ามี `SUPABASE_URL` + anon/publishable ใน `.env`  
 ใส่ `DATABASE_URL` ถ้าต้องการใช้ Drizzle ต่อ Postgres โดยตรง
 
+## Deploy CMS (Vercel)
+
+Repo นี้เป็น monorepo — บน Vercel ให้ใช้ root เป็น repo ทั้งก้อน (อย่าตั้ง Root Directory เป็น `apps/cms` อย่างเดียว ถ้ายังไม่มี `vercel.json`)
+
+ค่าที่ถูกต้อง (มีใน [`vercel.json`](vercel.json) แล้ว):
+
+- **Install:** `pnpm install`
+- **Build:** `pnpm --filter @sp/cms build`
+- **Output Directory:** `apps/cms/dist`
+
+Environment (Production):
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY` หรือ `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_API_URL` (URL ของ Nest API ถ้ามี)
+
 ## คู่มือผู้ใช้
 
 - Markdown: [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md)
