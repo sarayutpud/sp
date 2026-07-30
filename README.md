@@ -17,7 +17,7 @@ Monorepo สำหรับระบบจัดการแข่งขัน�
 apps/courtside   # Windows desktop — บันทึกสถิติข้างสนาม → sync Supabase
 apps/cms         # Web CMS → Supabase Auth + ข้อมูล
 packages/*       # shared-types, rules-engine, sync-protocol, ui
-supabase/        # migrations + RLS
+supabase/        # schema.sql + seed.sql + RLS
 ```
 
 ## เริ่มต้น

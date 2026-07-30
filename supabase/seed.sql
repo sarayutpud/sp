@@ -1,5 +1,5 @@
--- Optional SQL-only seed (players / rosters / game) — run in Supabase SQL Editor
--- Auth user sp@test.com must be created via: pnpm seed  (needs service_role key)
+-- Seed data + default CMS user — run after schema.sql
+-- หรือใช้: pnpm seed (ต้องมี SUPABASE_SERVICE_ROLE_KEY)
 
 insert into public.organizations (id, name)
 values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'SP FITNESS BANG SUE')
@@ -82,3 +82,39 @@ insert into public.on_court (game_id, team_id, player_id, slot) values
   ('22222222-2222-4222-8222-222222222201', '33333333-3333-4333-8333-333333333301', '11111111-1111-4111-8111-111111111104', 4),
   ('22222222-2222-4222-8222-222222222201', '33333333-3333-4333-8333-333333333301', '11111111-1111-4111-8111-111111111105', 5)
 on conflict (game_id, team_id, slot) do update set player_id = excluded.player_id;
+
+-- CMS admin: sp@test.com / sptest
+do $$
+declare
+  v_user_id uuid := 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaab01';
+begin
+  insert into auth.users (
+    id, instance_id, aud, role, email, encrypted_password,
+    email_confirmed_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data,
+    created_at, updated_at, confirmation_token, email_change,
+    email_change_token_new, recovery_token, is_sso_user
+  ) values (
+    v_user_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+    'sp@test.com', crypt('sptest', gen_salt('bf')), now(), now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"display_name":"SP Admin"}'::jsonb, now(), now(), '', '', '', '', false
+  )
+  on conflict (id) do update set
+    encrypted_password = excluded.encrypted_password,
+    email_confirmed_at = now(), updated_at = now();
+
+  insert into auth.identities (
+    id, user_id, identity_data, provider, provider_id,
+    last_sign_in_at, created_at, updated_at
+  ) values (
+    gen_random_uuid(), v_user_id,
+    jsonb_build_object('sub', v_user_id::text, 'email', 'sp@test.com'),
+    'email', v_user_id::text, now(), now(), now()
+  )
+  on conflict (provider_id, provider) do update set
+    identity_data = excluded.identity_data, updated_at = now();
+
+  insert into public.profiles (user_id, role, display_name)
+  values (v_user_id, 'admin', 'SP Admin')
+  on conflict (user_id) do update set role = excluded.role, display_name = excluded.display_name;
+end $$;

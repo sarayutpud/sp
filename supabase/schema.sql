@@ -1,5 +1,5 @@
--- Day-1 schema for SP FIBA Competition + Courtside
--- Apply via: supabase db push / supabase migration up
+-- SP Basketball — baseline schema (already applied on production)
+-- สำหรับโปรเจกต์ใหม่: รันไฟล์นี้ใน Supabase SQL Editor แล้วตามด้วย seed.sql
 
 create extension if not exists "pgcrypto";
 
@@ -161,58 +161,7 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 
--- Seed default FIBA ruleset + demo game for courtside sync tests
-insert into public.rulesets (id, name)
-values ('00000000-0000-4000-8000-000000000001', 'FIBA Full Court')
-on conflict (id) do nothing;
-
-insert into public.organizations (id, name)
-values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'SP Demo Org')
-on conflict (id) do nothing;
-
-insert into public.competitions (id, organization_id, ruleset_id, name, season)
-values (
-  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-  '00000000-0000-4000-8000-000000000001',
-  'SP Demo League',
-  '2026'
-)
-on conflict (id) do nothing;
-
-insert into public.teams (id, organization_id, name, short_name) values
-  ('33333333-3333-4333-8333-333333333301', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Home Hawks', 'HH'),
-  ('33333333-3333-4333-8333-333333333302', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Away Arrows', 'AA')
-on conflict (id) do nothing;
-
-insert into public.players (id, team_id, display_name, jersey_number) values
-  ('11111111-1111-4111-8111-111111111101', '33333333-3333-4333-8333-333333333301', 'วิชัย', '11'),
-  ('11111111-1111-4111-8111-111111111102', '33333333-3333-4333-8333-333333333301', 'อาทิตย์', '7'),
-  ('11111111-1111-4111-8111-111111111103', '33333333-3333-4333-8333-333333333301', 'กิตติ', '23'),
-  ('11111111-1111-4111-8111-111111111104', '33333333-3333-4333-8333-333333333301', 'ณัฐ', '5'),
-  ('11111111-1111-4111-8111-111111111105', '33333333-3333-4333-8333-333333333301', 'สมชาย', '9')
-on conflict (id) do nothing;
-
-insert into public.games (
-  id, competition_id, home_team_id, away_team_id, status
-) values (
-  '22222222-2222-4222-8222-222222222201',
-  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-  '33333333-3333-4333-8333-333333333301',
-  '33333333-3333-4333-8333-333333333302',
-  'live'
-)
-on conflict (id) do nothing;
-
-insert into public.game_states (game_id, status, period, home_attack_side_period1)
-values (
-  '22222222-2222-4222-8222-222222222201',
-  'live',
-  1,
-  'LEFT'
-)
-on conflict (game_id) do nothing;
-
+-- RLS
 alter table public.organizations enable row level security;
 alter table public.rulesets enable row level security;
 alter table public.competitions enable row level security;
@@ -230,24 +179,27 @@ alter table public.device_registry enable row level security;
 alter table public.sync_cursors enable row level security;
 alter table public.profiles enable row level security;
 
--- Read for authenticated; writes refined later via API roles
-create policy "authenticated read rulesets" on public.rulesets
-  for select to authenticated using (true);
+-- Authenticated read
+do $$ begin create policy "authenticated read rulesets" on public.rulesets for select to authenticated using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "authenticated read competitions" on public.competitions for select to authenticated using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "authenticated read games" on public.games for select to authenticated using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "authenticated read pbp" on public.play_by_play for select to authenticated using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "authenticated read teams" on public.teams for select to authenticated using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "authenticated read players" on public.players for select to authenticated using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "authenticated read rosters" on public.rosters for select to authenticated using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "users read own profile" on public.profiles for select to authenticated using (auth.uid() = user_id); exception when duplicate_object then null; end $$;
 
-create policy "authenticated read competitions" on public.competitions
-  for select to authenticated using (true);
+-- CMS write (authenticated admin)
+do $$ begin create policy "authenticated manage players" on public.players for all to authenticated using (true) with check (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "authenticated manage rosters" on public.rosters for all to authenticated using (true) with check (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "authenticated manage games" on public.games for all to authenticated using (true) with check (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "authenticated manage teams" on public.teams for all to authenticated using (true) with check (true); exception when duplicate_object then null; end $$;
 
-create policy "authenticated read games" on public.games
-  for select to authenticated using (true);
-
-create policy "authenticated read pbp" on public.play_by_play
-  for select to authenticated using (true);
-
-create policy "authenticated read teams" on public.teams
-  for select to authenticated using (true);
-
-create policy "authenticated read players" on public.players
-  for select to authenticated using (true);
-
-create policy "users read own profile" on public.profiles
-  for select to authenticated using (auth.uid() = user_id);
+-- Courtside anon sync (read structure + push PBP)
+do $$ begin create policy "anon read pbp" on public.play_by_play for select to anon using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "anon insert pbp" on public.play_by_play for insert to anon with check (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "anon read games" on public.games for select to anon using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "anon read teams" on public.teams for select to anon using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "anon read players" on public.players for select to anon using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "anon read competitions" on public.competitions for select to anon using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "anon read rulesets" on public.rulesets for select to anon using (true); exception when duplicate_object then null; end $$;
