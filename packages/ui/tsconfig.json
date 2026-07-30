@@ -7,8 +7,5 @@
     "composite": true
   },
   "include": ["src"],
-  "references": [
-    { "path": "../shared-types" },
-    { "path": "../rules-engine" }
-  ]
+  "references": [{ "path": "../shared-types" }, { "path": "../rules-engine" }]
 }

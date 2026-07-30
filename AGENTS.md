@@ -14,9 +14,6 @@ pnpm + turbo monorepo (Node 22, pnpm 9.15.0). Two frontends and shared packages,
 - Tests live in `rules-engine` and `sync-protocol` (vitest); the apps have no tests yet.
 - `pnpm typecheck` and `pnpm build` depend on `^build`, so shared packages must be built first (turbo handles this). Vite dev of the apps resolves `@sp/*` to source via aliases, so it does not require a prior build.
 
-### Known pre-existing state
-- `pnpm lint` currently **fails** on pre-existing Biome formatting errors in committed source (`apps/cms`, `apps/courtside`). CI on `main` is already red for this reason. It is not caused by environment setup — do not "fix" it as part of unrelated work.
-
 ### Backend: local Supabase (self-contained, no secrets needed)
 The apps require a Supabase backend. For the cloud VM there is a fully local option using the Supabase CLI (Docker-based) — no hosted keys required.
 

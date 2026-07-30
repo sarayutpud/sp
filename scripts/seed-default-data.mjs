@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 /**
  * Seed default SP data for CMS login + Courtside sync.
  *
@@ -13,7 +14,6 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
-import { resolve } from "node:path";
 
 config({ path: resolve(process.cwd(), ".env") });
 
@@ -31,13 +31,48 @@ const SEED = {
   awayTeamId: "33333333-3333-4333-8333-333333333302",
   gameId: "22222222-2222-4222-8222-222222222201",
   homePlayers: [
-    { id: "11111111-1111-4111-8111-111111111101", name: "วิชัย", no: "11", starter: true },
-    { id: "11111111-1111-4111-8111-111111111102", name: "อาทิตย์", no: "7", starter: true },
-    { id: "11111111-1111-4111-8111-111111111103", name: "กิตติ", no: "23", starter: true },
-    { id: "11111111-1111-4111-8111-111111111104", name: "ณัฐ", no: "5", starter: true },
-    { id: "11111111-1111-4111-8111-111111111105", name: "สมชาย", no: "9", starter: true },
-    { id: "11111111-1111-4111-8111-111111111106", name: "พงศ์", no: "15", starter: false },
-    { id: "11111111-1111-4111-8111-111111111107", name: "ธนา", no: "3", starter: false },
+    {
+      id: "11111111-1111-4111-8111-111111111101",
+      name: "วิชัย",
+      no: "11",
+      starter: true,
+    },
+    {
+      id: "11111111-1111-4111-8111-111111111102",
+      name: "อาทิตย์",
+      no: "7",
+      starter: true,
+    },
+    {
+      id: "11111111-1111-4111-8111-111111111103",
+      name: "กิตติ",
+      no: "23",
+      starter: true,
+    },
+    {
+      id: "11111111-1111-4111-8111-111111111104",
+      name: "ณัฐ",
+      no: "5",
+      starter: true,
+    },
+    {
+      id: "11111111-1111-4111-8111-111111111105",
+      name: "สมชาย",
+      no: "9",
+      starter: true,
+    },
+    {
+      id: "11111111-1111-4111-8111-111111111106",
+      name: "พงศ์",
+      no: "15",
+      starter: false,
+    },
+    {
+      id: "11111111-1111-4111-8111-111111111107",
+      name: "ธนา",
+      no: "3",
+      starter: false,
+    },
   ],
   awayPlayers: [
     { id: "11111111-1111-4111-8111-111111111201", name: "สุรชัย", no: "4" },
@@ -189,12 +224,7 @@ async function main() {
       jersey_number: p.no,
     })),
   ];
-  await upsert(
-    db,
-    "rosters",
-    rosterRows,
-    "competition_id,team_id,player_id",
-  );
+  await upsert(db, "rosters", rosterRows, "competition_id,team_id,player_id");
 
   const scheduledAt = new Date();
   scheduledAt.setHours(scheduledAt.getHours() + 2);
@@ -237,12 +267,7 @@ async function main() {
     player_id: p.id,
     slot: i + 1,
   }));
-  await upsert(
-    db,
-    "on_court",
-    onCourtRows,
-    "game_id,team_id,slot",
-  );
+  await upsert(db, "on_court", onCourtRows, "game_id,team_id,slot");
 
   await upsert(
     db,
