@@ -103,8 +103,16 @@ export const RulesetSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   periodCount: z.number().int().positive().default(4),
-  periodLengthMs: z.number().int().positive().default(10 * 60 * 1000),
-  otLengthMs: z.number().int().positive().default(5 * 60 * 1000),
+  periodLengthMs: z
+    .number()
+    .int()
+    .positive()
+    .default(10 * 60 * 1000),
+  otLengthMs: z
+    .number()
+    .int()
+    .positive()
+    .default(5 * 60 * 1000),
   foulOutCount: z.number().int().positive().default(5),
   teamFoulsBonusAt: z.number().int().positive().default(5),
   threePtProfile: ThreePtProfileSchema.default("FIBA_FULL"),

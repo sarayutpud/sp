@@ -14,9 +14,11 @@
   --danger: var(--red);
   font-family: "Bahnschrift", "Segoe UI", "Sarabun", sans-serif;
   color: var(--text);
-  background:
-    radial-gradient(circle at 85% -10%, rgba(255, 214, 0, 0.18), transparent 35%),
-    linear-gradient(180deg, #0f1654 0%, #12183f 40%, #0c1138 100%);
+  background: radial-gradient(
+      circle at 85% -10%,
+      rgba(255, 214, 0, 0.18),
+      transparent 35%
+    ), linear-gradient(180deg, #0f1654 0%, #12183f 40%, #0c1138 100%);
   min-height: 100%;
 }
 

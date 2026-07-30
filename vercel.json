@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm --filter @sp/cms build",
+  "buildCommand": "pnpm exec turbo run build --filter=@sp/cms",
   "outputDirectory": "apps/cms/dist",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

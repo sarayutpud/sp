@@ -68,7 +68,9 @@ export function PreGameScreen({ store, online, onStart }: Props) {
         if (cancelled) return;
         setPlayers(result.players);
         setPlayersFromCache(result.fromCache);
-        setSelectedPlayers(new Set(result.players.slice(0, 5).map((p) => p.id)));
+        setSelectedPlayers(
+          new Set(result.players.slice(0, 5).map((p) => p.id)),
+        );
       })
       .catch((err) => {
         if (!cancelled) {
@@ -139,12 +141,8 @@ export function PreGameScreen({ store, online, onStart }: Props) {
                 ))}
               </select>
             </label>
-            {fromCache && (
-              <p className="muted">{th.gamesFromCache}</p>
-            )}
-            {!online && (
-              <p className="muted">{th.offlineGameList}</p>
-            )}
+            {fromCache && <p className="muted">{th.gamesFromCache}</p>}
+            {!online && <p className="muted">{th.offlineGameList}</p>}
 
             {selectedGame && (
               <div className="pregame-roster">

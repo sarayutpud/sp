@@ -14,8 +14,7 @@ export const th = {
   exportSaved: (name: string) => `บันทึกไฟล์แล้ว: ${name}`,
   exportCancelled: "ยกเลิกการบันทึกไฟล์",
   preGame: "ตรวจก่อนเริ่มเกม",
-  preGameHint:
-    "เลือกแมตช์จาก CMS แล้วตั้งผู้เล่นบนสนาม 5 คน — ข้อมูลจะถูกบันทึกแยกตามแมตช์",
+  preGameHint: "เลือกแมตช์จาก CMS แล้วตั้งผู้เล่นบนสนาม 5 คน — ข้อมูลจะถูกบันทึกแยกตามแมตช์",
   selectGame: "เลือกแมตช์",
   selectOnCourt: (team: string) => `ผู้เล่นบนสนาม — ${team} (เลือก 5 คน)`,
   onCourtCount: (n: number) => `เลือกแล้ว ${n}/5`,
