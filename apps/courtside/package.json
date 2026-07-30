@@ -19,6 +19,8 @@
     "@sp/ui": "workspace:*",
     "@supabase/supabase-js": "^2.111.0",
     "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-dialog": "^2",
+    "@tauri-apps/plugin-fs": "^2",
     "@tauri-apps/plugin-sql": "^2.4.0",
     "exceljs": "^4.4.0",
     "react": "^19.0.0",

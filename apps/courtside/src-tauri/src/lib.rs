@@ -53,6 +53,8 @@ pub fn run() {
   let feed_tx = tx.clone();
 
   tauri::Builder::default()
+    .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_fs::init())
     .plugin(
       tauri_plugin_sql::Builder::default()
         .add_migrations(

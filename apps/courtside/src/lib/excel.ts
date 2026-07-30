@@ -1,8 +1,66 @@
 import type { PlayByPlayEvent } from "@sp/shared-types";
 import ExcelJS from "exceljs";
+import { saveBlob } from "./save-download";
+
+type ShotPayload = {
+  made?: boolean;
+  isThree?: boolean;
+  x?: number;
+  y?: number;
+  basketSide?: string;
+  countsAsFga?: boolean;
+};
+
+type BoxLine = {
+  pts: number;
+  fgm: number;
+  fga: number;
+  tpm: number;
+  tpa: number;
+  ftm: number;
+  fta: number;
+};
+
+function boxFromEvents(events: PlayByPlayEvent[]): Map<string, BoxLine> {
+  const lines = new Map<string, BoxLine>();
+  const ensure = (playerId: string) => {
+    let line = lines.get(playerId);
+    if (!line) {
+      line = { pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0 };
+      lines.set(playerId, line);
+    }
+    return line;
+  };
+
+  for (const e of events) {
+    if (e.type !== "SHOT" || !e.playerId) continue;
+    const p = e.payload as ShotPayload;
+    const line = ensure(e.playerId);
+    if (p.countsAsFga !== false) {
+      line.fga += 1;
+      if (p.isThree) line.tpa += 1;
+      if (p.made) {
+        line.fgm += 1;
+        if (p.isThree) {
+          line.tpm += 1;
+          line.pts += 3;
+        } else {
+          line.pts += 2;
+        }
+      }
+    }
+  }
+
+  return lines;
+}
 
 /** Fixed-column Excel template — do not rename sheets/columns lightly */
-export async function exportGameExcel(events: PlayByPlayEvent[]) {
+export async function exportGameExcel(
+  events: PlayByPlayEvent[],
+  gameId: string,
+): Promise<"saved" | "cancelled" | "empty"> {
+  if (events.length === 0) return "empty";
+
   const wb = new ExcelJS.Workbook();
   wb.creator = "SP Courtside";
 
@@ -17,6 +75,18 @@ export async function exportGameExcel(events: PlayByPlayEvent[]) {
     "FTM",
     "FTA",
   ]);
+  for (const [playerId, line] of boxFromEvents(events)) {
+    box.addRow([
+      playerId,
+      line.pts,
+      line.fgm,
+      line.fga,
+      line.tpm,
+      line.tpa,
+      line.ftm,
+      line.fta,
+    ]);
+  }
 
   const pbp = wb.addWorksheet("PBP");
   pbp.addRow([
@@ -35,13 +105,7 @@ export async function exportGameExcel(events: PlayByPlayEvent[]) {
 
   for (const e of events) {
     if (e.type !== "SHOT") continue;
-    const p = e.payload as {
-      made?: boolean;
-      isThree?: boolean;
-      x?: number;
-      y?: number;
-      basketSide?: string;
-    };
+    const p = e.payload as ShotPayload;
     pbp.addRow([
       e.eventId,
       e.period,
@@ -66,10 +130,6 @@ export async function exportGameExcel(events: PlayByPlayEvent[]) {
   const blob = new Blob([buf], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `sp-game-export.xlsx`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const shortId = gameId.slice(0, 8);
+  return saveBlob(blob, `sp-game-${shortId}.xlsx`);
 }

@@ -4,9 +4,16 @@ import { createHlc, tickHlc } from "@sp/sync-protocol";
 import { ShotChart, type ShotChartClick } from "@sp/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { PreGameScreen } from "./PreGameScreen";
 import { th } from "./i18n/th";
 import { exportGameExcel } from "./lib/excel";
+import {
+  clearSession,
+  loadSession,
+  type ActiveGameSession,
+} from "./lib/game-session";
 import { createLocalStore, type LocalStore } from "./lib/local-store";
+import { saveBlob } from "./lib/save-download";
 import { pushOutbox } from "./lib/sync-client";
 
 type Wizard =
@@ -14,19 +21,11 @@ type Wizard =
   | { step: "outcome"; shot: ShotChartClick }
   | { step: "player"; shot: ShotChartClick; made: boolean };
 
-const DEMO_ON_COURT = [
-  { id: "11111111-1111-4111-8111-111111111101", name: "11 วิชัย", fouls: 1 },
-  { id: "11111111-1111-4111-8111-111111111102", name: "7 อาทิตย์", fouls: 0 },
-  { id: "11111111-1111-4111-8111-111111111103", name: "23 กิตติ", fouls: 2 },
-  { id: "11111111-1111-4111-8111-111111111104", name: "5 ณัฐ", fouls: 0 },
-  { id: "11111111-1111-4111-8111-111111111105", name: "9 สมชาย", fouls: 4 },
-];
-
-const GAME_ID = "22222222-2222-4222-8222-222222222201";
 const DEVICE_ID = "courtside-web-dev";
 
 export function App() {
   const [store, setStore] = useState<LocalStore | null>(null);
+  const [session, setSession] = useState<ActiveGameSession | null>(null);
   const [online, setOnline] = useState(
     typeof navigator !== "undefined" ? navigator.onLine : true,
   );
@@ -34,24 +33,39 @@ export function App() {
   const [events, setEvents] = useState<PlayByPlayEvent[]>([]);
   const [hlc, setHlc] = useState<Hlc>(() => createHlc(DEVICE_ID));
   const [wizard, setWizard] = useState<Wizard>({ step: "idle" });
-  const [basketSide] = useState<BasketSide>("LEFT");
   const [lastSynced, setLastSynced] = useState<string>("—");
   const [syncMsg, setSyncMsg] = useState<string>("");
 
-  const refresh = useCallback(async (s: LocalStore) => {
-    const list = await s.listEvents(GAME_ID);
-    setEvents(list);
-    setPending(await s.pendingCount());
-    const synced = await s.getMeta("last_synced_at");
-    setLastSynced(synced ? new Date(synced).toLocaleTimeString("th-TH") : "—");
-  }, []);
+  const gameId = session?.gameId ?? "";
+  const basketSide: BasketSide = session?.homeAttackSide ?? "LEFT";
+  const onCourt = session?.onCourt ?? [];
+
+  const refresh = useCallback(
+    async (s: LocalStore, activeGameId: string) => {
+      if (!activeGameId) {
+        setEvents([]);
+        setPending(await s.pendingCount());
+        return;
+      }
+      const list = await s.listEvents(activeGameId);
+      setEvents(list);
+      setPending(await s.pendingCount());
+      const synced = await s.getMeta("last_synced_at");
+      setLastSynced(synced ? new Date(synced).toLocaleTimeString("th-TH") : "—");
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
     createLocalStore().then(async (s) => {
       if (cancelled) return;
       setStore(s);
-      await refresh(s);
+      const saved = await loadSession(s);
+      if (saved) {
+        setSession(saved);
+        await refresh(s, saved.gameId);
+      }
     });
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
@@ -64,12 +78,35 @@ export function App() {
     };
   }, [refresh]);
 
-  const undo = useCallback(async () => {
+  const handleStartGame = useCallback(
+    async (next: ActiveGameSession) => {
+      setSession(next);
+      setWizard({ step: "idle" });
+      setSyncMsg("");
+      if (store) await refresh(store, next.gameId);
+    },
+    [store, refresh],
+  );
+
+  const handleChangeGame = useCallback(async () => {
     if (!store) return;
-    await store.removeLastEvent(GAME_ID);
-    await refresh(store);
+    const ok = window.confirm(
+      "เปลี่ยนแมตช์? ข้อมูลในเครื่องของแมตช์นี้ยังอยู่ — สามารถกลับมาเลือกแมตช์เดิมได้",
+    );
+    if (!ok) return;
+    await clearSession(store);
+    setSession(null);
+    setEvents([]);
     setWizard({ step: "idle" });
-  }, [store, refresh]);
+    setSyncMsg("");
+  }, [store]);
+
+  const undo = useCallback(async () => {
+    if (!store || !gameId) return;
+    await store.removeLastEvent(gameId);
+    await refresh(store, gameId);
+    setWizard({ step: "idle" });
+  }, [store, gameId, refresh]);
 
   useHotkeys("ctrl+z", (e) => {
     e.preventDefault();
@@ -78,15 +115,15 @@ export function App() {
 
   const persistShot = useCallback(
     async (shot: ShotChartClick, made: boolean, playerId: string) => {
-      if (!store) return;
+      if (!store || !session) return;
       const flags = shotAttemptFlags({ made, fouledOnShot: false });
       const nextHlc = tickHlc(hlc);
       setHlc(nextHlc);
       const event: PlayByPlayEvent = {
         eventId: crypto.randomUUID(),
-        gameId: GAME_ID,
-        period: 1,
-        teamId: "33333333-3333-4333-8333-333333333301",
+        gameId: session.gameId,
+        period: session.period,
+        teamId: session.homeTeamId,
         playerId,
         type: "SHOT",
         hlc: nextHlc,
@@ -101,42 +138,85 @@ export function App() {
           andOne: flags.andOne,
         },
       };
-      // Local write first — never await network here
       await store.appendEvent(event);
-      await refresh(store);
+      await refresh(store, session.gameId);
       setWizard({ step: "idle" });
     },
-    [store, hlc, refresh],
+    [store, session, hlc, refresh],
   );
 
   const syncNow = useCallback(async () => {
     if (!store) return;
     const result = await pushOutbox(store);
-    await refresh(store);
+    if (gameId) await refresh(store, gameId);
     setSyncMsg(
       result.ok
         ? `ซิงก์แล้ว +${result.inserted} (ข้าม ${result.skipped})`
         : `ซิงก์ไม่สำเร็จ: ${result.error}`,
     );
-  }, [store, refresh]);
+  }, [store, gameId, refresh]);
 
   const backup = useCallback(async () => {
-    if (!store) return;
-    const json = await store.exportBackupJson(GAME_ID);
+    if (!store || !gameId) return;
+    const json = await store.exportBackupJson(gameId);
     const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `sp-backup-${GAME_ID.slice(0, 8)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [store]);
+    const name = `sp-backup-${gameId.slice(0, 8)}.json`;
+    const result = await saveBlob(blob, name);
+    setSyncMsg(
+      result === "saved" ? th.exportSaved(name) : th.exportCancelled,
+    );
+  }, [store, gameId]);
+
+  const exportExcel = useCallback(async () => {
+    if (!gameId) return;
+    const result = await exportGameExcel(events, gameId);
+    if (result === "empty") {
+      setSyncMsg(th.exportEmpty);
+      return;
+    }
+    setSyncMsg(
+      result === "saved"
+        ? th.exportSaved(`sp-game-${gameId.slice(0, 8)}.xlsx`)
+        : th.exportCancelled,
+    );
+  }, [events, gameId]);
 
   const statusLabel = useMemo(() => {
     if (!online) return th.syncOffline;
     if (pending > 0) return th.syncPending(pending);
     return th.syncOnline;
   }, [online, pending]);
+
+  if (!store) {
+    return (
+      <div className="shell">
+        <p className="muted" style={{ padding: "2rem" }}>
+          กำลังเปิด…
+        </p>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="shell">
+        <header className="topbar">
+          <div className="brand-wrap">
+            <img className="brand-logo" src="/sp-logo.png" alt="SP FITNESS" />
+            <div>
+              <strong className="brand">{th.appTitle}</strong>
+              <span className="brand-tag">FITNESS BANG SUE</span>
+            </div>
+          </div>
+        </header>
+        <PreGameScreen
+          store={store}
+          online={online}
+          onStart={handleStartGame}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="shell">
@@ -163,6 +243,16 @@ export function App() {
           </a>
         </div>
       </header>
+
+      <div className="game-banner">
+        <div>
+          <span className="muted">{th.currentGame}</span>
+          <strong>{session.label}</strong>
+        </div>
+        <button type="button" className="btn tiny" onClick={() => void handleChangeGame()}>
+          {th.changeGame}
+        </button>
+      </div>
 
       <main className="main">
         <section className="court-panel">
@@ -216,7 +306,7 @@ export function App() {
             <div className="card">
               <h2>{th.selectPlayer}</h2>
               <ul className="players">
-                {DEMO_ON_COURT.map((p) => (
+                {onCourt.map((p) => (
                   <li key={p.id}>
                     <button
                       type="button"
@@ -252,9 +342,7 @@ export function App() {
               <button
                 type="button"
                 className="btn"
-                onClick={() =>
-                  exportGameExcel(events).catch((err) => console.error(err))
-                }
+                onClick={() => void exportExcel()}
               >
                 {th.exportExcel}
               </button>
