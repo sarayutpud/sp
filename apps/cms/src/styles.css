@@ -72,6 +72,56 @@ body {
   color: var(--err);
 }
 
+.muted {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.auth {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 360px;
+}
+
+.auth label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.auth input {
+  border: 1px solid #2d4a3e;
+  border-radius: 8px;
+  background: #0f1c17;
+  color: var(--text);
+  padding: 0.55rem 0.7rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  border: 1px solid #2d4a3e;
+  background: #24362e;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: #1a1200;
+  border-color: transparent;
+  font-weight: 700;
+}
+
 ul {
   margin: 0;
   padding-left: 1.2rem;

@@ -17,6 +17,8 @@
     "@sp/shared-types": "workspace:*",
     "@sp/sync-protocol": "workspace:*",
     "@sp/ui": "workspace:*",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-sql": "^2.4.0",
     "exceljs": "^4.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

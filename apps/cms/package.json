@@ -15,9 +15,11 @@
     "@sp/rules-engine": "workspace:*",
     "@sp/shared-types": "workspace:*",
     "@sp/ui": "workspace:*",
+    "@supabase/supabase-js": "^2.111.0",
     "@tanstack/react-query": "^5.62.8",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
     "@types/react": "^19.0.2",

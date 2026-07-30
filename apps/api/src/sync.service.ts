@@ -1,32 +1,58 @@
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { Injectable, Logger } from "@nestjs/common";
 import type { DeltaPushEnvelope, PlayByPlayEvent } from "@sp/shared-types";
 import { asc, eq } from "drizzle-orm";
 import { createDb, type Db } from "./db/client";
 import { playByPlay } from "./db/schema";
 
+type PbpRow = {
+  event_id: string;
+  game_id: string;
+  period: number;
+  clock_ms: number | null;
+  team_id: string | null;
+  player_id: string | null;
+  type: string;
+  hlc: PlayByPlayEvent["hlc"];
+  payload: Record<string, unknown>;
+  voided_at: string | null;
+  void_reason: string | null;
+  voided_by_event_id: string | null;
+  created_at?: string;
+};
+
 @Injectable()
 export class SyncService {
   private readonly log = new Logger(SyncService.name);
   private readonly memory = new Map<string, PlayByPlayEvent>();
   private readonly db: Db | null;
+  private readonly supabase: SupabaseClient | null;
 
   constructor() {
-    const url = process.env.DATABASE_URL;
-    this.db = url ? createDb(url) : null;
-    this.log.log(this.db ? "Using Postgres via DATABASE_URL" : "Using in-memory store");
+    const databaseUrl = process.env.DATABASE_URL;
+    this.db = databaseUrl ? createDb(databaseUrl) : null;
+
+    const url = process.env.SUPABASE_URL;
+    const key =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_PUBLISHABLE_KEY;
+    this.supabase = url && key ? createClient(url, key) : null;
+
+    if (this.db) this.log.log("Sync backend: Postgres (DATABASE_URL)");
+    else if (this.supabase) this.log.log("Sync backend: Supabase client");
+    else this.log.log("Sync backend: in-memory");
   }
 
   async pushDelta(envelope: DeltaPushEnvelope) {
-    if (this.db) {
-      return this.pushDb(envelope);
-    }
+    if (this.db) return this.pushDb(envelope);
+    if (this.supabase) return this.pushSupabase(envelope);
     return this.pushMemory(envelope);
   }
 
   async pullPbp(gameId: string, sinceEventId?: string) {
-    if (this.db) {
-      return this.pullDb(gameId, sinceEventId);
-    }
+    if (this.db) return this.pullDb(gameId, sinceEventId);
+    if (this.supabase) return this.pullSupabase(gameId, sinceEventId);
     return this.pullMemory(gameId, sinceEventId);
   }
 
@@ -41,10 +67,41 @@ export class SyncService {
       this.memory.set(event.eventId, event);
       inserted += 1;
     }
-    this.log.log(
-      `memory push device=${envelope.deviceId} inserted=${inserted} skipped=${skipped}`,
-    );
     return { inserted, skipped, backend: "memory" as const };
+  }
+
+  private async pushSupabase(envelope: DeltaPushEnvelope) {
+    const rows = envelope.events.map((event) => ({
+      event_id: event.eventId,
+      game_id: event.gameId,
+      period: event.period,
+      clock_ms: event.clockMs ?? null,
+      team_id: event.teamId ?? null,
+      player_id: event.playerId ?? null,
+      type: event.type,
+      hlc: event.hlc,
+      payload: event.payload ?? {},
+      voided_at: event.voidedAt ?? null,
+      void_reason: event.voidReason ?? null,
+      voided_by_event_id: event.voidedByEventId ?? null,
+    }));
+
+    const { data, error } = await this.supabase!
+      .from("play_by_play")
+      .upsert(rows, { onConflict: "event_id", ignoreDuplicates: true })
+      .select("event_id");
+
+    if (error) {
+      this.log.error(`Supabase push failed: ${error.message}`);
+      throw error;
+    }
+
+    const inserted = data?.length ?? 0;
+    return {
+      inserted,
+      skipped: envelope.events.length - inserted,
+      backend: "supabase" as const,
+    };
   }
 
   private async pushDb(envelope: DeltaPushEnvelope) {
@@ -70,13 +127,9 @@ export class SyncService {
         })
         .onConflictDoNothing({ target: playByPlay.eventId })
         .returning({ eventId: playByPlay.eventId });
-
       if (result.length > 0) inserted += 1;
       else skipped += 1;
     }
-    this.log.log(
-      `db push device=${envelope.deviceId} inserted=${inserted} skipped=${skipped}`,
-    );
     return { inserted, skipped, backend: "postgres" as const };
   }
 
@@ -94,6 +147,28 @@ export class SyncService {
     };
   }
 
+  private async pullSupabase(gameId: string, sinceEventId?: string) {
+    const { data, error } = await this.supabase!
+      .from("play_by_play")
+      .select("*")
+      .eq("game_id", gameId)
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+    let rows = (data ?? []) as PbpRow[];
+    if (sinceEventId) {
+      const idx = rows.findIndex((r) => r.event_id === sinceEventId);
+      rows = idx >= 0 ? rows.slice(idx + 1) : rows;
+    }
+
+    const events = rows.map((r) => this.rowToEvent(r));
+    return {
+      events,
+      cursor: events.at(-1)?.eventId ?? sinceEventId ?? null,
+      backend: "supabase" as const,
+    };
+  }
+
   private async pullDb(gameId: string, sinceEventId?: string) {
     const db = this.db!;
     let rows = await db
@@ -103,16 +178,8 @@ export class SyncService {
       .orderBy(asc(playByPlay.createdAt));
 
     if (sinceEventId) {
-      const anchor = rows.find((r) => r.eventId === sinceEventId);
-      if (anchor?.createdAt) {
-        rows = await db
-          .select()
-          .from(playByPlay)
-          .where(eq(playByPlay.gameId, gameId))
-          .orderBy(asc(playByPlay.createdAt));
-        const idx = rows.findIndex((r) => r.eventId === sinceEventId);
-        rows = idx >= 0 ? rows.slice(idx + 1) : rows;
-      }
+      const idx = rows.findIndex((r) => r.eventId === sinceEventId);
+      rows = idx >= 0 ? rows.slice(idx + 1) : rows;
     }
 
     const events: PlayByPlayEvent[] = rows.map((r) => ({
@@ -134,6 +201,23 @@ export class SyncService {
       events,
       cursor: events.at(-1)?.eventId ?? sinceEventId ?? null,
       backend: "postgres" as const,
+    };
+  }
+
+  private rowToEvent(r: PbpRow): PlayByPlayEvent {
+    return {
+      eventId: r.event_id,
+      gameId: r.game_id,
+      period: r.period,
+      clockMs: r.clock_ms ?? undefined,
+      teamId: r.team_id ?? undefined,
+      playerId: r.player_id ?? undefined,
+      type: r.type as PlayByPlayEvent["type"],
+      hlc: r.hlc,
+      payload: r.payload ?? {},
+      voidedAt: r.voided_at ?? undefined,
+      voidReason: r.void_reason ?? undefined,
+      voidedByEventId: r.voided_by_event_id ?? undefined,
     };
   }
 }

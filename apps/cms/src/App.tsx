@@ -1,8 +1,25 @@
+import type { Session } from "@supabase/supabase-js";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState, type FormEvent } from "react";
+import { supabase } from "./lib/supabase";
 
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 export function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authMsg, setAuthMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, next) => {
+      setSession(next);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
   const health = useQuery({
     queryKey: ["health"],
     queryFn: async () => {
@@ -12,6 +29,43 @@ export function App() {
     },
     refetchInterval: 10_000,
   });
+
+  const games = useQuery({
+    queryKey: ["games", session?.user.id],
+    enabled: !!session,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("games")
+        .select("id,status,home_team_id,away_team_id,scheduled_at")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  async function onLogin(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setAuthMsg("");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setBusy(false);
+    if (error) setAuthMsg(error.message);
+  }
+
+  async function onSignUp(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setAuthMsg("");
+    const { error } = await supabase.auth.signUp({ email, password });
+    setBusy(false);
+    if (error) setAuthMsg(error.message);
+    else setAuthMsg("สมัครแล้ว — ตรวจอีเมลยืนยันถ้าโปรเจกต์เปิด confirm ไว้");
+  }
+
+  async function onLogout() {
+    await supabase.auth.signOut();
+  }
 
   return (
     <div className="page">
@@ -29,20 +83,77 @@ export function App() {
         {health.isError && (
           <p className="err">ยังเชื่อม API ไม่ได้ — รัน `@sp/api` ที่พอร์ต 3001</p>
         )}
-        {health.data && (
-          <p className="ok">API พร้อม · {health.data.service}</p>
-        )}
+        {health.data && <p className="ok">API พร้อม · {health.data.service}</p>}
+        <p className="muted">
+          Supabase: {import.meta.env.VITE_SUPABASE_URL ? "configured" : "missing"}
+        </p>
       </section>
 
       <section className="panel">
-        <h2>เมนู (Phase 1)</h2>
-        <ul>
-          <li>รายการแข่งขัน + Ruleset FIBA</li>
-          <li>ทีม / ผู้เล่น / Roster</li>
-          <li>ตารางแข่ง / เริ่มเกม</li>
-          <li>Box Score + Export Excel</li>
-        </ul>
+        <h2>เข้าสู่ระบบ</h2>
+        {session ? (
+          <div>
+            <p className="ok">ล็อกอินแล้ว: {session.user.email}</p>
+            <button type="button" className="btn" onClick={() => void onLogout()}>
+              ออกจากระบบ
+            </button>
+          </div>
+        ) : (
+          <form className="auth" onSubmit={(e) => void onLogin(e)}>
+            <label>
+              อีเมล
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </label>
+            <label>
+              รหัสผ่าน
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </label>
+            <div className="row">
+              <button type="submit" className="btn primary" disabled={busy}>
+                เข้าสู่ระบบ
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={(e) => void onSignUp(e)}
+              >
+                สมัคร
+              </button>
+            </div>
+            {authMsg && <p className="err">{authMsg}</p>}
+          </form>
+        )}
       </section>
+
+      {session && (
+        <section className="panel">
+          <h2>เกมในระบบ</h2>
+          {games.isLoading && <p>โหลด…</p>}
+          {games.isError && <p className="err">{(games.error as Error).message}</p>}
+          {games.data && games.data.length === 0 && <p>ยังไม่มีเกม</p>}
+          {games.data && games.data.length > 0 && (
+            <ul>
+              {games.data.map((g) => (
+                <li key={g.id}>
+                  <code>{g.id.slice(0, 8)}</code> · {g.status}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
     </div>
   );
 }

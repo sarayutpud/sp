@@ -17,6 +17,8 @@
     "@sp/rules-engine": "workspace:*",
     "@sp/shared-types": "workspace:*",
     "@sp/sync-protocol": "workspace:*",
+    "@supabase/supabase-js": "^2.111.0",
+    "dotenv": "^17.4.2",
     "drizzle-orm": "^0.38.3",
     "postgres": "^3.4.5",
     "reflect-metadata": "^0.2.2",
