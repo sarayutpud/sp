@@ -14,5 +14,10 @@ apps/api/dist
 *.tsbuildinfo
 apps/api/dist
 packages/*/dist
+releases/**/*.exe
+releases/**/*.msi
+releases/**/*.nsis.zip
+*.msi
+*.nsis.zip
 .vscode/*
 !.vscode/extensions.json
