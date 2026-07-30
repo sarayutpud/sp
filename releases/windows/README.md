@@ -1,5 +1,10 @@
-# Windows builds (binaries uploaded via GitHub Releases, not git)
+# Windows builds
 
-Place local build artifacts here after `pnpm exec tauri build`.
+Local artifacts (gitignored):
 
-Download installs from GitHub Releases instead of committing `.exe` into the repo.
+- `SP-Courtside.exe` — portable
+- `SP-Courtside-Setup-0.1.1.exe` — NSIS installer
+
+Built with Supabase direct sync (no Nest API).
+
+Upload via GitHub Releases after `gh auth login`.
