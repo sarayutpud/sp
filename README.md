@@ -34,11 +34,19 @@ npx pnpm@9.15.0 --filter @sp/api dev
 npx pnpm@9.15.0 --filter @sp/cms dev
 ```
 
-Courtside ต้องมี [Rust](https://rustup.rs/) + WebView2 (Windows) ก่อน:
+Courtside (Windows desktop) ต้องมี:
+
+1. [Rust](https://rustup.rs/)
+2. **Visual Studio Build Tools** — workload *Desktop development with C++* (ต้องมี `link.exe`)
+3. WebView2
 
 ```bash
-npx pnpm@9.15.0 --filter @sp/courtside dev
+npx pnpm@9.15.0 --filter @sp/courtside tauri:dev
+# หรือดู UI บนเว็บก่อน: npx pnpm@9.15.0 --filter @sp/courtside dev
 ```
+
+API จะซิงก์ขึ้น Supabase อัตโนมัติถ้ามี `SUPABASE_URL` + anon/publishable ใน `.env`  
+ใส่ `DATABASE_URL` ถ้าต้องการใช้ Drizzle ต่อ Postgres โดยตรง
 
 ## หลักการ Offline-First
 
