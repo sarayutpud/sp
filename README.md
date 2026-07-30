@@ -6,18 +6,16 @@ Monorepo สำหรับระบบจัดการแข่งขัน�
 
 | ชั้น | เทคโนโลยี |
 |------|-----------|
-| Courtside | Tauri 2 + React + SQLite |
-| CMS | Vite + React |
-| API | NestJS + Drizzle |
-| Cloud DB | Supabase PostgreSQL |
+| Courtside | Tauri 2 + React + SQLite / IndexedDB |
+| CMS | Vite + React (Vercel) |
+| Sync / DB / Auth | Supabase (ตรงจาก client — ไม่มี Nest API แยก) |
 | Shared | Zod types + rules-engine |
 
 ## โครงสร้าง
 
 ```
-apps/courtside   # Windows desktop — บันทึกสถิติข้างสนาม
-apps/cms         # Web CMS
-apps/api         # Sync API
+apps/courtside   # Windows desktop — บันทึกสถิติข้างสนาม → sync Supabase
+apps/cms         # Web CMS → Supabase Auth + ข้อมูล
 packages/*       # shared-types, rules-engine, sync-protocol, ui
 supabase/        # migrations + RLS
 ```
@@ -30,8 +28,8 @@ npx pnpm@9.15.0 install
 cp .env.example .env   # ใส่ secrets จริง — ห้าม commit .env
 
 npx pnpm@9.15.0 --filter @sp/rules-engine test
-npx pnpm@9.15.0 --filter @sp/api dev
 npx pnpm@9.15.0 --filter @sp/cms dev
+npx pnpm@9.15.0 --filter @sp/courtside dev
 ```
 
 Courtside (Windows desktop) ต้องมี:
@@ -42,27 +40,20 @@ Courtside (Windows desktop) ต้องมี:
 
 ```bash
 npx pnpm@9.15.0 --filter @sp/courtside tauri:dev
-# หรือดู UI บนเว็บก่อน: npx pnpm@9.15.0 --filter @sp/courtside dev
 ```
 
-API จะซิงก์ขึ้น Supabase อัตโนมัติถ้ามี `SUPABASE_URL` + anon/publishable ใน `.env`  
-ใส่ `DATABASE_URL` ถ้าต้องการใช้ Drizzle ต่อ Postgres โดยตรง
-
 ## Deploy CMS (Vercel)
-
-Repo นี้เป็น monorepo — บน Vercel ให้ใช้ root เป็น repo ทั้งก้อน (อย่าตั้ง Root Directory เป็น `apps/cms` อย่างเดียว ถ้ายังไม่มี `vercel.json`)
-
-ค่าที่ถูกต้อง (มีใน [`vercel.json`](vercel.json) แล้ว):
 
 - **Install:** `pnpm install`
 - **Build:** `pnpm --filter @sp/cms build`
 - **Output Directory:** `apps/cms/dist`
 
-Environment (Production):
+Environment (Production) บน Vercel:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY` หรือ `VITE_SUPABASE_PUBLISHABLE_KEY`
-- `VITE_API_URL` (URL ของ Nest API ถ้ามี)
+
+ไม่ต้องมี `VITE_API_URL` — client sync ตรงกับ Supabase
 
 ## คู่มือผู้ใช้
 
@@ -71,13 +62,13 @@ Environment (Production):
 
 ## หลักการ Offline-First
 
-- SQLite บนเครื่อง = source of truth ขณะแข่ง
-- Network เป็นชั้น sync แบบ async (outbox delta)
+- SQLite / IndexedDB บนเครื่อง = source of truth ขณะแข่ง
+- กด **ซิงก์** เพื่อส่ง outbox ขึ้น Supabase โดยตรง
 - UI บันทึกช็อตด้วยการคลิกแผนที่สนาม — ไม่รอเน็ต
 - Export Excel `.xlsx` (Box Score / PBP / Shots)
 
 ## ความปลอดภัย
 
-- ใช้ publishable key ฝั่ง client เท่านั้น
-- `service_role` / `DATABASE_URL` อยู่ฝั่ง API เท่านั้น
+- ใช้ publishable / anon key ฝั่ง client เท่านั้น
+- ห้ามใส่ `service_role` ใน CMS / Courtside / Vercel frontend
 - เปิด RLS ทุกตารางใน `public`

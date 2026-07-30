@@ -130,6 +130,9 @@ importers:
       '@sp/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@supabase/supabase-js':
+        specifier: ^2.111.0
+        version: 2.111.0
       '@tauri-apps/api':
         specifier: ^2.11.1
         version: 2.11.1

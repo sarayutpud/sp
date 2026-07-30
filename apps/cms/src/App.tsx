@@ -3,8 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "./lib/supabase";
 
-const API = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
-
 export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState("");
@@ -21,11 +19,14 @@ export function App() {
   }, []);
 
   const health = useQuery({
-    queryKey: ["health"],
+    queryKey: ["supabase-health"],
     queryFn: async () => {
-      const res = await fetch(`${API}/health`);
-      if (!res.ok) throw new Error("API offline");
-      return res.json() as Promise<{ ok: boolean; service: string }>;
+      const { data, error } = await supabase
+        .from("rulesets")
+        .select("id,name")
+        .limit(1);
+      if (error) throw error;
+      return { ok: true, service: "supabase", sample: data?.[0]?.name ?? null };
     },
     refetchInterval: 10_000,
   });
@@ -87,14 +88,15 @@ export function App() {
 
       <section className="panel">
         <h2>สถานะระบบ</h2>
-        {health.isLoading && <p>กำลังเชื่อมต่อ API…</p>}
+        {health.isLoading && <p>กำลังเชื่อมต่อ Supabase…</p>}
         {health.isError && (
-          <p className="err">ยังเชื่อม API ไม่ได้ — รัน `@sp/api` ที่พอร์ต 3001</p>
+          <p className="err">
+            เชื่อม Supabase ไม่ได้ — ตรวจ VITE_SUPABASE_URL / key บน Vercel
+          </p>
         )}
-        {health.data && <p className="ok">API พร้อม · {health.data.service}</p>}
-        <p className="muted">
-          Supabase: {import.meta.env.VITE_SUPABASE_URL ? "configured" : "missing"}
-        </p>
+        {health.data && (
+          <p className="ok">Supabase พร้อม · {health.data.service}</p>
+        )}
         <a className="manual-link" href="/user-manual.html" target="_blank" rel="noreferrer">
           เปิดคู่มือผู้ใช้งาน
         </a>

@@ -21,3 +21,4 @@ releases/**/*.nsis.zip
 *.nsis.zip
 .vscode/*
 !.vscode/extensions.json
+releases/**/*.zip
