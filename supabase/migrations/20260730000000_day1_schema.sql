@@ -161,10 +161,57 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 
--- Seed default FIBA ruleset
+-- Seed default FIBA ruleset + demo game for courtside sync tests
 insert into public.rulesets (id, name)
 values ('00000000-0000-4000-8000-000000000001', 'FIBA Full Court')
 on conflict (id) do nothing;
+
+insert into public.organizations (id, name)
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'SP Demo Org')
+on conflict (id) do nothing;
+
+insert into public.competitions (id, organization_id, ruleset_id, name, season)
+values (
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  '00000000-0000-4000-8000-000000000001',
+  'SP Demo League',
+  '2026'
+)
+on conflict (id) do nothing;
+
+insert into public.teams (id, organization_id, name, short_name) values
+  ('33333333-3333-4333-8333-333333333301', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Home Hawks', 'HH'),
+  ('33333333-3333-4333-8333-333333333302', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Away Arrows', 'AA')
+on conflict (id) do nothing;
+
+insert into public.players (id, team_id, display_name, jersey_number) values
+  ('11111111-1111-4111-8111-111111111101', '33333333-3333-4333-8333-333333333301', 'วิชัย', '11'),
+  ('11111111-1111-4111-8111-111111111102', '33333333-3333-4333-8333-333333333301', 'อาทิตย์', '7'),
+  ('11111111-1111-4111-8111-111111111103', '33333333-3333-4333-8333-333333333301', 'กิตติ', '23'),
+  ('11111111-1111-4111-8111-111111111104', '33333333-3333-4333-8333-333333333301', 'ณัฐ', '5'),
+  ('11111111-1111-4111-8111-111111111105', '33333333-3333-4333-8333-333333333301', 'สมชาย', '9')
+on conflict (id) do nothing;
+
+insert into public.games (
+  id, competition_id, home_team_id, away_team_id, status
+) values (
+  '22222222-2222-4222-8222-222222222201',
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  '33333333-3333-4333-8333-333333333301',
+  '33333333-3333-4333-8333-333333333302',
+  'live'
+)
+on conflict (id) do nothing;
+
+insert into public.game_states (game_id, status, period, home_attack_side_period1)
+values (
+  '22222222-2222-4222-8222-222222222201',
+  'live',
+  1,
+  'LEFT'
+)
+on conflict (game_id) do nothing;
 
 alter table public.organizations enable row level security;
 alter table public.rulesets enable row level security;

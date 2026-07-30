@@ -1,11 +1,13 @@
 import { shotAttemptFlags } from "@sp/rules-engine";
-import type { BasketSide, PlayByPlayEvent } from "@sp/shared-types";
+import type { BasketSide, Hlc, PlayByPlayEvent } from "@sp/shared-types";
 import { createHlc, tickHlc } from "@sp/sync-protocol";
 import { ShotChart, type ShotChartClick } from "@sp/ui";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { th } from "./i18n/th";
 import { exportGameExcel } from "./lib/excel";
+import { createLocalStore, type LocalStore } from "./lib/local-store";
+import { pushOutbox } from "./lib/sync-client";
 
 type Wizard =
   | { step: "idle" }
@@ -21,35 +23,62 @@ const DEMO_ON_COURT = [
 ];
 
 const GAME_ID = "22222222-2222-4222-8222-222222222201";
+const DEVICE_ID = "courtside-web-dev";
 
 export function App() {
-  const [online] = useState(
+  const [store, setStore] = useState<LocalStore | null>(null);
+  const [online, setOnline] = useState(
     typeof navigator !== "undefined" ? navigator.onLine : true,
   );
   const [pending, setPending] = useState(0);
   const [events, setEvents] = useState<PlayByPlayEvent[]>([]);
-  const [hlc, setHlc] = useState(() => createHlc("courtside-local"));
+  const [hlc, setHlc] = useState<Hlc>(() => createHlc(DEVICE_ID));
   const [wizard, setWizard] = useState<Wizard>({ step: "idle" });
   const [basketSide] = useState<BasketSide>("LEFT");
-  const [lastSynced] = useState<string>("—");
+  const [lastSynced, setLastSynced] = useState<string>("—");
+  const [syncMsg, setSyncMsg] = useState<string>("");
 
-  const undo = useCallback(() => {
-    setEvents((prev) => {
-      if (prev.length === 0) return prev;
-      const next = prev.slice(0, -1);
-      setPending((p) => Math.max(0, p - 1));
-      return next;
-    });
-    setWizard({ step: "idle" });
+  const refresh = useCallback(async (s: LocalStore) => {
+    const list = await s.listEvents(GAME_ID);
+    setEvents(list);
+    setPending(await s.pendingCount());
+    const synced = await s.getMeta("last_synced_at");
+    setLastSynced(synced ? new Date(synced).toLocaleTimeString("th-TH") : "—");
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    createLocalStore().then(async (s) => {
+      if (cancelled) return;
+      setStore(s);
+      await refresh(s);
+    });
+    const onOnline = () => setOnline(true);
+    const onOffline = () => setOnline(false);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, [refresh]);
+
+  const undo = useCallback(async () => {
+    if (!store) return;
+    await store.removeLastEvent(GAME_ID);
+    await refresh(store);
+    setWizard({ step: "idle" });
+  }, [store, refresh]);
 
   useHotkeys("ctrl+z", (e) => {
     e.preventDefault();
-    undo();
+    void undo();
   });
 
   const persistShot = useCallback(
-    (shot: ShotChartClick, made: boolean, playerId: string) => {
+    async (shot: ShotChartClick, made: boolean, playerId: string) => {
+      if (!store) return;
       const flags = shotAttemptFlags({ made, fouledOnShot: false });
       const nextHlc = tickHlc(hlc);
       setHlc(nextHlc);
@@ -72,12 +101,36 @@ export function App() {
           andOne: flags.andOne,
         },
       };
-      setEvents((prev) => [...prev, event]);
-      setPending((p) => p + 1);
+      // Local write first — never await network here
+      await store.appendEvent(event);
+      await refresh(store);
       setWizard({ step: "idle" });
     },
-    [hlc],
+    [store, hlc, refresh],
   );
+
+  const syncNow = useCallback(async () => {
+    if (!store) return;
+    const result = await pushOutbox(store);
+    await refresh(store);
+    setSyncMsg(
+      result.ok
+        ? `ซิงก์แล้ว +${result.inserted} (ข้าม ${result.skipped})`
+        : `ซิงก์ไม่สำเร็จ: ${result.error}`,
+    );
+  }, [store, refresh]);
+
+  const backup = useCallback(async () => {
+    if (!store) return;
+    const json = await store.exportBackupJson(GAME_ID);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sp-backup-${GAME_ID.slice(0, 8)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [store]);
 
   const statusLabel = useMemo(() => {
     if (!online) return th.syncOffline;
@@ -95,7 +148,13 @@ export function App() {
         <div className="sync" data-state={online ? "on" : "off"}>
           <span className="dot" />
           {statusLabel}
-          <span className="muted"> · {th.lastSynced}: {lastSynced}</span>
+          <span className="muted">
+            {" "}
+            · {th.lastSynced}: {lastSynced}
+          </span>
+          <button type="button" className="btn tiny" onClick={() => void syncNow()}>
+            ซิงก์
+          </button>
         </div>
       </header>
 
@@ -106,6 +165,7 @@ export function App() {
             basketSide={basketSide}
             onShot={(shot) => setWizard({ step: "outcome", shot })}
           />
+          {syncMsg && <p className="muted">{syncMsg}</p>}
         </section>
 
         <aside className="side">
@@ -156,7 +216,7 @@ export function App() {
                       type="button"
                       className="btn block"
                       onClick={() =>
-                        persistShot(wizard.shot, wizard.made, p.id)
+                        void persistShot(wizard.shot, wizard.made, p.id)
                       }
                     >
                       {p.name} · ฟาล์ว {p.fouls}
@@ -170,30 +230,35 @@ export function App() {
           <div className="card">
             <h2>อีเวนต์ล่าสุด ({events.length})</h2>
             <ol className="log">
-              {[...events].reverse().slice(0, 8).map((e) => (
-                <li key={e.eventId}>
-                  {e.type} · {String((e.payload as { made?: boolean }).made)}
-                </li>
-              ))}
+              {[...events]
+                .reverse()
+                .slice(0, 8)
+                .map((e) => (
+                  <li key={e.eventId}>
+                    {e.type} · {String((e.payload as { made?: boolean }).made)}
+                  </li>
+                ))}
             </ol>
             <div className="row">
-              <button type="button" className="btn" onClick={undo}>
+              <button type="button" className="btn" onClick={() => void undo()}>
                 {th.undo}
               </button>
               <button
                 type="button"
                 className="btn"
                 onClick={() =>
-                  exportGameExcel(events).catch((err) =>
-                    console.error(err),
-                  )
+                  exportGameExcel(events).catch((err) => console.error(err))
                 }
               >
                 {th.exportExcel}
               </button>
             </div>
-            <button type="button" className="btn block" disabled>
-              {th.backup} (Tauri)
+            <button
+              type="button"
+              className="btn block"
+              onClick={() => void backup()}
+            >
+              {th.backup}
             </button>
           </div>
         </aside>
