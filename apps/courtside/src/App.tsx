@@ -141,9 +141,12 @@ export function App() {
   return (
     <div className="shell">
       <header className="topbar">
-        <div>
-          <strong className="brand">{th.appTitle}</strong>
-          <span className="muted"> · บันทึกสถิติข้างสนาม</span>
+        <div className="brand-wrap">
+          <img className="brand-logo" src="/sp-logo.png" alt="SP FITNESS" />
+          <div>
+            <strong className="brand">{th.appTitle}</strong>
+            <span className="brand-tag">FITNESS BANG SUE</span>
+          </div>
         </div>
         <div className="sync" data-state={online ? "on" : "off"}>
           <span className="dot" />
@@ -155,6 +158,9 @@ export function App() {
           <button type="button" className="btn tiny" onClick={() => void syncNow()}>
             ซิงก์
           </button>
+          <a className="manual-link" href="/user-manual.html" target="_blank" rel="noreferrer">
+            คู่มือ
+          </a>
         </div>
       </header>
 

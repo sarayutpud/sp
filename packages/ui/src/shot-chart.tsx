@@ -25,12 +25,13 @@ export function ShotChart({ basketSide, onShot, style }: Props) {
         position: "relative",
         width: "100%",
         aspectRatio: "28 / 15",
-        border: "2px solid #1a3a2a",
+        border: "3px solid #1a237e",
         background:
-          "linear-gradient(90deg, #c4a574 0%, #d4b896 50%, #c4a574 100%)",
-        borderRadius: 4,
+          "linear-gradient(90deg, #c9a46c 0%, #e2c48a 50%, #c9a46c 100%)",
+        borderRadius: 6,
         padding: 0,
         cursor: "crosshair",
+        boxShadow: "0 6px 0 rgba(26,35,126,0.2)",
         ...style,
       }}
       onClick={(e) => {
@@ -48,17 +49,17 @@ export function ShotChart({ basketSide, onShot, style }: Props) {
         style={{ pointerEvents: "none", display: "block" }}
         aria-hidden
       >
-        <rect x="1" y="1" width="278" height="148" fill="none" stroke="#1a3a2a" strokeWidth="2" />
-        <line x1="140" y1="1" x2="140" y2="149" stroke="#1a3a2a" strokeWidth="1.5" />
-        <circle cx="140" cy="75" r="18" fill="none" stroke="#1a3a2a" strokeWidth="1.5" />
-        <rect x="1" y="35" width="58" height="80" fill="none" stroke="#1a3a2a" strokeWidth="1.5" />
-        <rect x="221" y="35" width="58" height="80" fill="none" stroke="#1a3a2a" strokeWidth="1.5" />
-        <circle cx="16" cy="75" r="4" fill="#c0392b" />
-        <circle cx="264" cy="75" r="4" fill="#c0392b" />
+        <rect x="1" y="1" width="278" height="148" fill="none" stroke="#1a237e" strokeWidth="2" />
+        <line x1="140" y1="1" x2="140" y2="149" stroke="#1a237e" strokeWidth="1.5" />
+        <circle cx="140" cy="75" r="18" fill="none" stroke="#1a237e" strokeWidth="1.5" />
+        <rect x="1" y="35" width="58" height="80" fill="none" stroke="#1a237e" strokeWidth="1.5" />
+        <rect x="221" y="35" width="58" height="80" fill="none" stroke="#1a237e" strokeWidth="1.5" />
+        <circle cx="16" cy="75" r="4" fill="#e53935" />
+        <circle cx="264" cy="75" r="4" fill="#e53935" />
         <path
           d="M 16 75 m -67.5 0 a 67.5 67.5 0 0 1 67.5 -67.5"
           fill="none"
-          stroke="#1a3a2a"
+          stroke="#1a237e"
           strokeWidth="1"
           opacity="0.5"
         />
@@ -69,9 +70,11 @@ export function ShotChart({ basketSide, onShot, style }: Props) {
           bottom: 8,
           left: 8,
           fontSize: 12,
-          color: "#1a3a2a",
-          background: "rgba(255,255,255,0.7)",
+          color: "#1a237e",
+          background: "rgba(255,214,0,0.9)",
           padding: "2px 6px",
+          fontWeight: 700,
+          borderRadius: 4,
         }}
       >
         คลิกตำแหน่งช็อต · ตะกร้า{basketSide === "LEFT" ? "ซ้าย" : "ขวา"}

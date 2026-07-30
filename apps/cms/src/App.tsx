@@ -70,11 +70,19 @@ export function App() {
   return (
     <div className="page">
       <header className="hero">
-        <p className="brand">SP</p>
-        <h1>ระบบจัดการแข่งขันบาสเก็ตบอล</h1>
-        <p className="lead">
-          CMS สำหรับรายการแข่ง ทีม ตาราง และรายงานสถิติมาตรฐาน FIBA
-        </p>
+        <img
+          className="hero-logo"
+          src="/sp-logo.png"
+          alt="SP FITNESS BANG SUE"
+        />
+        <div className="brand-block">
+          <p className="brand">SP</p>
+          <p className="brand-sub">FITNESS BANG SUE</p>
+          <h1>ระบบจัดการแข่งขันบาสเก็ตบอล</h1>
+          <p className="lead">
+            CMS สำหรับรายการแข่ง ทีม ตาราง และรายงานสถิติมาตรฐาน FIBA
+          </p>
+        </div>
       </header>
 
       <section className="panel">
@@ -87,6 +95,9 @@ export function App() {
         <p className="muted">
           Supabase: {import.meta.env.VITE_SUPABASE_URL ? "configured" : "missing"}
         </p>
+        <a className="manual-link" href="/user-manual.html" target="_blank" rel="noreferrer">
+          เปิดคู่มือผู้ใช้งาน
+        </a>
       </section>
 
       <section className="panel">

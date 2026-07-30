@@ -48,6 +48,11 @@ npx pnpm@9.15.0 --filter @sp/courtside tauri:dev
 API จะซิงก์ขึ้น Supabase อัตโนมัติถ้ามี `SUPABASE_URL` + anon/publishable ใน `.env`  
 ใส่ `DATABASE_URL` ถ้าต้องการใช้ Drizzle ต่อ Postgres โดยตรง
 
+## คู่มือผู้ใช้
+
+- Markdown: [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md)
+- หน้าเว็บในแอป: `/user-manual.html` (CMS และ Courtside)
+
 ## หลักการ Offline-First
 
 - SQLite บนเครื่อง = source of truth ขณะแข่ง

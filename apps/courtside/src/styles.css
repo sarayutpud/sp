@@ -1,15 +1,23 @@
 :root {
-  --bg: #101820;
-  --panel: #1b2834;
-  --line: #2f4354;
-  --text: #f4f1ea;
-  --muted: #8fa3b5;
-  --accent: #f0a202;
+  --navy: #1a237e;
+  --navy-deep: #0f1654;
+  --yellow: #ffd600;
+  --yellow-dim: #e6c200;
+  --red: #e53935;
+  --bg: #12183f;
+  --panel: #1c2460;
+  --line: #3a4694;
+  --text: #fff8e1;
+  --muted: #b7bfec;
+  --accent: var(--yellow);
   --ok: #3ddc97;
-  --danger: #ef476f;
-  font-family: "Segoe UI", "Sarabun", system-ui, sans-serif;
+  --danger: var(--red);
+  font-family: "Bahnschrift", "Segoe UI", "Sarabun", sans-serif;
   color: var(--text);
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 85% -10%, rgba(255, 214, 0, 0.18), transparent 35%),
+    linear-gradient(180deg, #0f1654 0%, #12183f 40%, #0c1138 100%);
+  min-height: 100%;
 }
 
 * {
@@ -31,18 +39,43 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--line);
-  background: #0c1218;
+  padding: 0.65rem 1rem;
+  border-bottom: 3px solid var(--yellow);
+  background: linear-gradient(90deg, var(--navy-deep), var(--navy));
+}
+
+.brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.brand-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 2px solid var(--yellow);
+  background: var(--yellow);
 }
 
 .brand {
-  color: var(--accent);
-  letter-spacing: 0.06em;
+  color: var(--red);
+  letter-spacing: 0.05em;
+  font-size: 1.25rem;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.brand-tag {
+  display: block;
+  color: var(--yellow);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  font-weight: 700;
 }
 
 .muted {
-  color: #8fa3b5;
+  color: var(--muted);
   font-size: 0.9rem;
 }
 
@@ -81,7 +114,8 @@ body {
 .court-panel h1 {
   margin: 0 0 0.75rem;
   font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--yellow);
 }
 
 .side {
@@ -92,14 +126,16 @@ body {
 
 .card {
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
   padding: 0.9rem 1rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
 }
 
 .card h2 {
   margin: 0 0 0.6rem;
   font-size: 1rem;
+  color: var(--yellow);
 }
 
 .row {
@@ -110,16 +146,17 @@ body {
 }
 
 .btn {
-  border: 1px solid var(--line);
-  background: #243444;
+  border: 2px solid var(--line);
+  background: #24306f;
   color: var(--text);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 0.55rem 0.85rem;
   cursor: pointer;
+  font-weight: 700;
 }
 
 .btn:hover:not(:disabled) {
-  border-color: var(--accent);
+  border-color: var(--yellow);
 }
 
 .btn:disabled {
@@ -128,16 +165,22 @@ body {
 }
 
 .btn.primary {
-  background: var(--accent);
-  color: #1a1200;
-  border-color: transparent;
-  font-weight: 700;
+  background: var(--yellow);
+  color: var(--navy-deep);
+  border-color: var(--yellow);
+  font-weight: 800;
 }
 
 .btn.tiny {
   padding: 0.25rem 0.55rem;
   font-size: 0.8rem;
   margin-left: 0.5rem;
+}
+
+.btn.block {
+  width: 100%;
+  margin-top: 0.4rem;
+  text-align: left;
 }
 
 .players {
@@ -152,8 +195,20 @@ body {
 .log {
   margin: 0;
   padding-left: 1.1rem;
-  color: #8fa3b5;
+  color: var(--muted);
   font-size: 0.88rem;
   max-height: 160px;
   overflow: auto;
+}
+
+.manual-link {
+  color: var(--yellow);
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 214, 0, 0.5);
+}
+
+.manual-link:hover {
+  color: #fff;
 }
