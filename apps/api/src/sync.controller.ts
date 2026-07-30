@@ -1,10 +1,10 @@
-import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Param, Post, Query } from "@nestjs/common";
 import { DeltaPushEnvelopeSchema } from "@sp/shared-types";
 import { SyncService } from "./sync.service";
 
 @Controller()
 export class SyncController {
-  constructor(private readonly sync: SyncService) {}
+  constructor(@Inject(SyncService) private readonly sync: SyncService) {}
 
   @Get("health")
   health() {
