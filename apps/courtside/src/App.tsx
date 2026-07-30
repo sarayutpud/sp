@@ -159,7 +159,9 @@ export function App() {
     const blob = new Blob([json], { type: "application/json" });
     const name = `sp-backup-${gameId.slice(0, 8)}.json`;
     const result = await saveBlob(blob, name);
-    setSyncMsg(result === "saved" ? th.exportSaved(name) : th.exportCancelled);
+    if (result === "saved") setSyncMsg(th.exportSaved(name));
+    else if (result === "cancelled") setSyncMsg(th.exportCancelled);
+    else setSyncMsg(th.exportFailed(result.error));
   }, [store, gameId]);
 
   const exportExcel = useCallback(async () => {
@@ -169,11 +171,13 @@ export function App() {
       setSyncMsg(th.exportEmpty);
       return;
     }
-    setSyncMsg(
-      result === "saved"
-        ? th.exportSaved(`sp-game-${gameId.slice(0, 8)}.xlsx`)
-        : th.exportCancelled,
-    );
+    if (result === "saved") {
+      setSyncMsg(th.exportSaved(`sp-game-${gameId.slice(0, 8)}.xlsx`));
+    } else if (result === "cancelled") {
+      setSyncMsg(th.exportCancelled);
+    } else {
+      setSyncMsg(th.exportFailed(result.error));
+    }
   }, [events, gameId]);
 
   const statusLabel = useMemo(() => {

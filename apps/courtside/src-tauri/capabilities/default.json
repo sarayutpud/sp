@@ -7,6 +7,21 @@
     "core:default",
     "dialog:default",
     "fs:default",
+    "fs:allow-write-file",
+    "fs:allow-create",
+    "fs:allow-mkdir",
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-create",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:scope",
+      "allow": [{ "path": "**" }]
+    },
     "sql:default",
     "sql:allow-execute",
     "sql:allow-select",

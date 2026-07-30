@@ -58,7 +58,7 @@ function boxFromEvents(events: PlayByPlayEvent[]): Map<string, BoxLine> {
 export async function exportGameExcel(
   events: PlayByPlayEvent[],
   gameId: string,
-): Promise<"saved" | "cancelled" | "empty"> {
+): Promise<"saved" | "cancelled" | "empty" | { error: string }> {
   if (events.length === 0) return "empty";
 
   const wb = new ExcelJS.Workbook();

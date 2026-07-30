@@ -13,6 +13,7 @@ export const th = {
   exportEmpty: "ยังไม่มีอีเวนต์ในเกมนี้ — บันทึกช็อตก่อนแล้วลองใหม่",
   exportSaved: (name: string) => `บันทึกไฟล์แล้ว: ${name}`,
   exportCancelled: "ยกเลิกการบันทึกไฟล์",
+  exportFailed: (detail: string) => `บันทึกไฟล์ไม่สำเร็จ: ${detail}`,
   preGame: "ตรวจก่อนเริ่มเกม",
   preGameHint: "เลือกแมตช์จาก CMS แล้วตั้งผู้เล่นบนสนาม 5 คน — ข้อมูลจะถูกบันทึกแยกตามแมตช์",
   selectGame: "เลือกแมตช์",

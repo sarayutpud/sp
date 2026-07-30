@@ -3,7 +3,7 @@
 Local artifacts (gitignored):
 
 - `SP-Courtside.exe` — portable
-- `SP-Courtside-Setup-0.1.1.exe` — NSIS installer
+- `SP-Courtside-Setup-0.1.2.exe` — NSIS installer
 
 Built with Supabase direct sync (no Nest API).
 

@@ -10,21 +10,38 @@ function filtersFor(name: string) {
   return [];
 }
 
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
+export type SaveBlobResult = "saved" | "cancelled" | { error: string };
+
 /** Save a blob — native dialog in Tauri, browser download otherwise */
 export async function saveBlob(
   blob: Blob,
   defaultName: string,
-): Promise<"saved" | "cancelled"> {
+): Promise<SaveBlobResult> {
   if (isTauri()) {
     const { save } = await import("@tauri-apps/plugin-dialog");
     const { writeFile } = await import("@tauri-apps/plugin-fs");
-    const path = await save({
-      defaultPath: defaultName,
-      filters: filtersFor(defaultName),
-    });
-    if (!path) return "cancelled";
-    await writeFile(path, new Uint8Array(await blob.arrayBuffer()));
-    return "saved";
+    try {
+      const path = await save({
+        defaultPath: defaultName,
+        filters: filtersFor(defaultName),
+        title: "บันทึกไฟล์",
+      });
+      if (!path) return "cancelled";
+      await writeFile(path, new Uint8Array(await blob.arrayBuffer()));
+      return "saved";
+    } catch (err) {
+      return { error: errorMessage(err) };
+    }
   }
 
   const url = URL.createObjectURL(blob);
