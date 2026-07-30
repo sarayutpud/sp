@@ -269,6 +269,23 @@ body {
   font: inherit;
 }
 
+.pregame-create {
+  margin: 0.75rem 0 1rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.pregame-create h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--yellow);
+}
+
 .pregame-roster {
   margin: 1rem 0;
 }

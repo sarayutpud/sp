@@ -30,4 +30,13 @@ export const th = {
   playersFromCache: "ใช้รายชื่อผู้เล่นที่ดึงไว้ล่าสุด",
   offlineGameList: "ออฟไลน์ — เลือกได้เฉพาะแมตช์ที่เคยโหลดไว้",
   shotPrompt: "คลิกบนแผนที่สนามเพื่อบันทึกช็อต",
+  createMatch: "สร้างแมตช์ใหม่",
+  cancelCreateMatch: "ปิดฟอร์มสร้างแมตช์",
+  createMatchHint: "ถ้ายังไม่มีแมตช์ที่ต้องการ สร้างตอนนี้ (ต้องออนไลน์) แล้วซิงก์สถิติได้ทันที",
+  createMatchSubmit: "บันทึกแมตช์แล้วเลือกใช้",
+  creatingMatch: "กำลังสร้างแมตช์…",
+  createMatchNeedOnline: "ต้องออนไลน์ถึงจะสร้างแมตช์ขึ้นเซิร์ฟเวอร์ได้",
+  createMatchFailed: "สร้างแมตช์ไม่สำเร็จ",
+  homeTeam: "ทีมเหย้า",
+  awayTeam: "ทีมเยือน",
 } as const;

@@ -199,6 +199,10 @@ do $$ begin create policy "authenticated manage teams" on public.teams for all t
 do $$ begin create policy "anon read pbp" on public.play_by_play for select to anon using (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "anon insert pbp" on public.play_by_play for insert to anon with check (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "anon read games" on public.games for select to anon using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "anon insert games" on public.games for insert to anon with check (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "anon update games" on public.games for update to anon using (true) with check (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "anon insert game_states" on public.game_states for insert to anon with check (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "anon update game_states" on public.game_states for update to anon using (true) with check (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "anon read teams" on public.teams for select to anon using (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "anon read players" on public.players for select to anon using (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "anon read competitions" on public.competitions for select to anon using (true); exception when duplicate_object then null; end $$;

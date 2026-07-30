@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { GamesPage } from "./pages/GamesPage";
 import { LoginPage } from "./pages/LoginPage";
 import { PlayersPage } from "./pages/PlayersPage";
 import { ReportsPage } from "./pages/ReportsPage";
@@ -35,6 +36,7 @@ export function App() {
             <Route index element={<Navigate to="/players" replace />} />
             <Route path="players" element={<PlayersPage />} />
             <Route path="rosters" element={<RostersPage />} />
+            <Route path="games" element={<GamesPage />} />
             <Route path="reports" element={<ReportsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/players" replace />} />

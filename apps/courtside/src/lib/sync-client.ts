@@ -1,4 +1,6 @@
 import type { PlayByPlayEvent } from "@sp/shared-types";
+import { ensureGameOnServer } from "./game-loader";
+import type { ActiveGameSession } from "./game-session";
 import type { LocalStore } from "./local-store";
 import { supabase } from "./supabase";
 
@@ -29,10 +31,30 @@ function toRow(event: PlayByPlayEvent) {
 }
 
 /** Push local outbox directly to Supabase (no Nest API). */
-export async function pushOutbox(store: LocalStore): Promise<SyncResult> {
+export async function pushOutbox(
+  store: LocalStore,
+  session?: ActiveGameSession | null,
+): Promise<SyncResult> {
   const events = await store.pendingOutbox();
   if (events.length === 0) {
     return { ok: true, inserted: 0, skipped: 0 };
+  }
+
+  if (session) {
+    const ensured = await ensureGameOnServer({
+      gameId: session.gameId,
+      homeTeamId: session.homeTeamId,
+      awayTeamId: session.awayTeamId,
+      competitionId: session.competitionId,
+    });
+    if (!ensured.ok) {
+      return {
+        ok: false,
+        inserted: 0,
+        skipped: 0,
+        error: `สร้างแมตช์บนเซิร์ฟเวอร์ไม่สำเร็จ: ${ensured.error}`,
+      };
+    }
   }
 
   let inserted = 0;
@@ -61,7 +83,6 @@ export async function pushOutbox(store: LocalStore): Promise<SyncResult> {
 
       const returned = new Set((data ?? []).map((r) => r.event_id as string));
       for (const event of batch) {
-        // mark all as synced once upsert accepts the batch (duplicates count as skipped)
         syncedIds.push(event.eventId);
         if (returned.has(event.eventId)) inserted += 1;
         else skipped += 1;

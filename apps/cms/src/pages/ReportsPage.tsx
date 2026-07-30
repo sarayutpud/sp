@@ -11,6 +11,12 @@ import {
   fmtPct,
 } from "../lib/coach-reports";
 import {
+  buildMatchShareCsv,
+  buildMatchShareText,
+  downloadTextFile,
+  shareOrDownloadText,
+} from "../lib/share-report";
+import {
   buildFullBoxScore,
   buildShotMarkers,
   buildTeamAdvanced,
@@ -19,6 +25,8 @@ import {
 } from "../lib/stats-reports";
 
 type ReportTab = "insights" | "box" | "advanced" | "shotchart" | "zones";
+
+const RECENT_LIMIT = 10;
 
 const TABS: { id: ReportTab; label: string }[] = [
   { id: "insights", label: "คำแนะนำโค้ช" },
@@ -36,6 +44,7 @@ export function ReportsPage() {
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [teamFilter, setTeamFilter] = useState<string>("");
   const [tab, setTab] = useState<ReportTab>("insights");
+  const [shareMsg, setShareMsg] = useState("");
 
   const games = useQuery({ queryKey: ["games"], queryFn: fetchGames });
   const teams = useQuery({ queryKey: ["teams"], queryFn: fetchTeams });
@@ -43,6 +52,11 @@ export function ReportsPage() {
   const teamMap = useMemo(
     () => new Map((teams.data ?? []).map((t) => [t.id, t.name])),
     [teams.data],
+  );
+
+  const recentGames = useMemo(
+    () => (games.data ?? []).slice(0, RECENT_LIMIT),
+    [games.data],
   );
 
   const selectedGame = games.data?.find((g) => g.id === selectedGameId);
@@ -54,6 +68,10 @@ export function ReportsPage() {
     ? activeTeamId === selectedGame.home_team_id
       ? selectedGame.away_team_id
       : selectedGame.home_team_id
+    : "";
+
+  const matchLabel = selectedGame
+    ? `${teamMap.get(selectedGame.home_team_id) ?? "?"} vs ${teamMap.get(selectedGame.away_team_id) ?? "?"}`
     : "";
 
   const pbp = useQuery({
@@ -118,9 +136,64 @@ export function ReportsPage() {
     return buildCoachInsights(playerLines, teamZones, teamName);
   }, [playerLines, teamZones, teamMap, activeTeamId]);
 
+  const sharePayload = useMemo(() => {
+    if (!selectedGame) return null;
+    return {
+      matchLabel,
+      teamName: teamMap.get(activeTeamId) ?? "ทีม",
+      scheduledAt: selectedGame.scheduled_at,
+      box: fullBox,
+      insights: insights.map((i) => i.text),
+      totals: boxTotals
+        ? {
+            pts: boxTotals.pts,
+            reb: boxTotals.reb,
+            ast: boxTotals.ast,
+            fgm: boxTotals.fgm,
+            fga: boxTotals.fga,
+            tpm: boxTotals.tpm,
+            tpa: boxTotals.tpa,
+          }
+        : null,
+    };
+  }, [
+    selectedGame,
+    matchLabel,
+    teamMap,
+    activeTeamId,
+    fullBox,
+    insights,
+    boxTotals,
+  ]);
+
   const madeShots = shotMarkers.filter((s) => s.made).length;
   const hasEvents = (pbp.data?.length ?? 0) > 0;
   const hasShots = shotMarkers.length > 0;
+
+  const exportShare = async () => {
+    if (!sharePayload || !selectedGameId) return;
+    const text = buildMatchShareText(sharePayload);
+    const short = selectedGameId.slice(0, 8);
+    const result = await shareOrDownloadText(
+      `รายงาน ${sharePayload.matchLabel}`,
+      text,
+      `sp-report-${short}.txt`,
+    );
+    setShareMsg(
+      result === "shared" ? "แชร์แล้ว" : `ดาวน์โหลด sp-report-${short}.txt แล้ว`,
+    );
+  };
+
+  const exportCsv = () => {
+    if (!sharePayload || !selectedGameId) return;
+    const short = selectedGameId.slice(0, 8);
+    downloadTextFile(
+      `sp-report-${short}.csv`,
+      buildMatchShareCsv(sharePayload),
+      "text/csv;charset=utf-8",
+    );
+    setShareMsg(`ดาวน์โหลด sp-report-${short}.csv แล้ว`);
+  };
 
   return (
     <div className="page-block">
@@ -132,35 +205,39 @@ export function ReportsPage() {
       </header>
 
       <section className="panel">
-        <h2>เลือกแมตช์</h2>
+        <h2>เลือกแมตช์ (10 นัดล่าสุด)</h2>
+        <p className="muted report-note">
+          แสดงเฉพาะ 10 รายการล่าสุดตามเวลาแข่ง — สร้างแมตช์ใหม่ได้ที่เมนู “จัดการแมตช์”
+        </p>
         {games.isLoading && <p>โหลด…</p>}
         {games.isError && (
           <p className="err">{(games.error as Error).message}</p>
         )}
         <div className="table-scroll">
-          <table className="data-table">
+          <table className="data-table wrap-cells">
             <thead>
               <tr>
-                <th>วันที่</th>
-                <th>คู่แข่ง</th>
+                <th>แมตช์</th>
                 <th>สถานะ</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {(games.data ?? []).map((g) => (
+              {recentGames.map((g) => (
                 <tr
                   key={g.id}
                   className={selectedGameId === g.id ? "selected" : ""}
                 >
-                  <td>
-                    {g.scheduled_at
-                      ? new Date(g.scheduled_at).toLocaleString("th-TH")
-                      : "—"}
-                  </td>
-                  <td>
-                    {teamMap.get(g.home_team_id) ?? "?"} vs{" "}
-                    {teamMap.get(g.away_team_id) ?? "?"}
+                  <td className="cell-stack">
+                    <span className="cell-primary">
+                      {teamMap.get(g.home_team_id) ?? "?"} vs{" "}
+                      {teamMap.get(g.away_team_id) ?? "?"}
+                    </span>
+                    <span className="cell-muted">
+                      {g.scheduled_at
+                        ? new Date(g.scheduled_at).toLocaleString("th-TH")
+                        : "—"}
+                    </span>
                   </td>
                   <td>
                     <span className={`badge status-${g.status}`}>
@@ -175,6 +252,7 @@ export function ReportsPage() {
                         setSelectedGameId(g.id);
                         setTeamFilter(g.home_team_id);
                         setTab("insights");
+                        setShareMsg("");
                       }}
                     >
                       ดูรายงาน
@@ -182,6 +260,13 @@ export function ReportsPage() {
                   </td>
                 </tr>
               ))}
+              {recentGames.length === 0 && !games.isLoading && (
+                <tr>
+                  <td colSpan={3} className="muted">
+                    ยังไม่มีแมตช์
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -217,6 +302,29 @@ export function ReportsPage() {
               ))}
             </div>
           </div>
+
+          {hasEvents && (
+            <section className="panel">
+              <h2>แชร์รายงานนัดนี้</h2>
+              <p className="muted report-note">
+                ส่งสรุปข้อความหรือไฟล์ CSV ของ {matchLabel} —{" "}
+                {teamMap.get(activeTeamId)}
+              </p>
+              <div className="report-export-row">
+                <button
+                  type="button"
+                  className="btn primary"
+                  onClick={() => void exportShare()}
+                >
+                  แชร์ / ดาวน์โหลดข้อความ
+                </button>
+                <button type="button" className="btn" onClick={exportCsv}>
+                  ดาวน์โหลด CSV
+                </button>
+                {shareMsg && <span className="muted">{shareMsg}</span>}
+              </div>
+            </section>
+          )}
 
           {pbp.isLoading && <p className="muted">โหลดสถิติ…</p>}
           {pbp.isError && <p className="err">{(pbp.error as Error).message}</p>}
@@ -277,7 +385,7 @@ export function ReportsPage() {
                 เทิร์นโอเวอร์ · PF ฟาวล์
               </p>
               <div className="table-scroll">
-                <table className="data-table">
+                <table className="data-table wrap-cells">
                   <thead>
                     <tr>
                       <th>#</th>
@@ -408,7 +516,7 @@ export function ReportsPage() {
 
               <h2 style={{ marginTop: "1.1rem" }}>ประสิทธิภาพรายผู้เล่น</h2>
               <div className="table-scroll">
-                <table className="data-table">
+                <table className="data-table wrap-cells">
                   <thead>
                     <tr>
                       <th>ผู้เล่น</th>
@@ -423,8 +531,11 @@ export function ReportsPage() {
                   <tbody>
                     {playerLines.map((line) => (
                       <tr key={line.playerId}>
-                        <td>
-                          {line.jersey} {line.playerName}
+                        <td className="cell-stack">
+                          <span className="cell-primary">
+                            {line.playerName}
+                          </span>
+                          <span className="cell-muted">#{line.jersey}</span>
                         </td>
                         <td className={pctClass(line.fgPct, 0.45)}>
                           {fmtPct(line.fgPct)}
@@ -510,7 +621,7 @@ export function ReportsPage() {
               <section className="panel">
                 <h2>โซนการยิง — ทีมรวม</h2>
                 <div className="table-scroll">
-                  <table className="data-table">
+                  <table className="data-table wrap-cells">
                     <thead>
                       <tr>
                         <th>โซน</th>
@@ -553,7 +664,7 @@ export function ReportsPage() {
                       <h3>
                         {row.jersey} {row.playerName}
                       </h3>
-                      <table className="data-table compact">
+                      <table className="data-table compact wrap-cells">
                         <thead>
                           <tr>
                             <th>โซน</th>

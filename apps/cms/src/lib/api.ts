@@ -97,6 +97,48 @@ export async function fetchGames(): Promise<GameRow[]> {
   return (data ?? []) as GameRow[];
 }
 
+export async function createGame(input: {
+  competition_id: string;
+  home_team_id: string;
+  away_team_id: string;
+  scheduled_at: string | null;
+  status?: string;
+}): Promise<GameRow> {
+  if (input.home_team_id === input.away_team_id) {
+    throw new Error("ทีมเหย้าและทีมเยือนต้องต่างกัน");
+  }
+  const { data, error } = await supabase
+    .from("games")
+    .insert({
+      competition_id: input.competition_id,
+      home_team_id: input.home_team_id,
+      away_team_id: input.away_team_id,
+      scheduled_at: input.scheduled_at,
+      status: input.status ?? "scheduled",
+    })
+    .select("id,status,scheduled_at,home_team_id,away_team_id,competition_id")
+    .single();
+  if (error) throw error;
+
+  const game = data as GameRow;
+  const { error: stateError } = await supabase.from("game_states").upsert({
+    game_id: game.id,
+    status: game.status,
+    period: 1,
+    home_attack_side_period1: "LEFT",
+  });
+  if (stateError) throw stateError;
+  return game;
+}
+
+export async function updateGameStatus(id: string, status: string) {
+  const { error } = await supabase
+    .from("games")
+    .update({ status })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export async function fetchPbp(gameId: string): Promise<PbpEvent[]> {
   const { data, error } = await supabase
     .from("play_by_play")

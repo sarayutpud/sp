@@ -5,6 +5,7 @@ import { useAuth } from "../lib/auth";
 const NAV = [
   { to: "/players", label: "จัดการผู้เล่น", icon: "🏀" },
   { to: "/rosters", label: "จัดสรรรายชื่อ", icon: "📋" },
+  { to: "/games", label: "จัดการแมตช์", icon: "🗓️" },
   { to: "/reports", label: "รายงานสรุป", icon: "📊" },
 ] as const;
 

@@ -11,6 +11,7 @@ export type ActiveGameSession = {
   gameId: string;
   homeTeamId: string;
   awayTeamId: string;
+  competitionId?: string;
   label: string;
   onCourt: OnCourtPlayer[];
   period: number;

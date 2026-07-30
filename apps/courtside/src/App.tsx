@@ -144,14 +144,14 @@ export function App() {
 
   const syncNow = useCallback(async () => {
     if (!store) return;
-    const result = await pushOutbox(store);
+    const result = await pushOutbox(store, session);
     if (gameId) await refresh(store, gameId);
     setSyncMsg(
       result.ok
         ? `ซิงก์แล้ว +${result.inserted} (ข้าม ${result.skipped})`
         : `ซิงก์ไม่สำเร็จ: ${result.error}`,
     );
-  }, [store, gameId, refresh]);
+  }, [store, gameId, refresh, session]);
 
   const backup = useCallback(async () => {
     if (!store || !gameId) return;

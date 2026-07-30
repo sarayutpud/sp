@@ -8,6 +8,8 @@ import {
 import type { LocalStore } from "./local-store";
 import { supabase } from "./supabase";
 
+export const DEFAULT_COMPETITION_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
 type TeamRow = { id: string; name: string; short_name: string | null };
 type GameRow = {
   id: string;
@@ -15,6 +17,7 @@ type GameRow = {
   scheduled_at: string | null;
   home_team_id: string;
   away_team_id: string;
+  competition_id?: string;
 };
 
 export type RosterPlayer = {
@@ -89,7 +92,6 @@ async function pullPlayersFromWeb(teamId: string): Promise<RosterPlayer[]> {
   );
 }
 
-/** Prefetch rosters for all teams in the game list while online */
 async function prefetchRosters(
   store: LocalStore,
   games: GameListItem[],
@@ -107,6 +109,96 @@ async function prefetchRosters(
       }
     }),
   );
+}
+
+export async function fetchTeamsOnline(): Promise<TeamRow[]> {
+  const { data, error } = await supabase
+    .from("teams")
+    .select("id, name, short_name")
+    .order("name");
+  if (error) throw error;
+  return (data ?? []) as TeamRow[];
+}
+
+export async function createGameOnline(input: {
+  competitionId?: string;
+  homeTeamId: string;
+  awayTeamId: string;
+  scheduledAt?: string | null;
+}): Promise<GameListItem> {
+  if (input.homeTeamId === input.awayTeamId) {
+    throw new Error("ทีมเหย้าและทีมเยือนต้องต่างกัน");
+  }
+  const competitionId = input.competitionId ?? DEFAULT_COMPETITION_ID;
+  const scheduledAt = input.scheduledAt ?? new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("games")
+    .insert({
+      competition_id: competitionId,
+      home_team_id: input.homeTeamId,
+      away_team_id: input.awayTeamId,
+      scheduled_at: scheduledAt,
+      status: "scheduled",
+    })
+    .select("id, status, scheduled_at, home_team_id, away_team_id")
+    .single();
+  if (error) throw error;
+
+  const game = data as GameRow;
+  await supabase.from("game_states").upsert({
+    game_id: game.id,
+    status: "scheduled",
+    period: 1,
+    home_attack_side_period1: "LEFT",
+  });
+
+  const teams = await fetchTeamsOnline();
+  const teamMap = new Map(teams.map((t) => [t.id, t]));
+  const item = toGameListItem(game, teamMap);
+  if (!item) throw new Error("สร้างแมตช์แล้ว แต่โหลดชื่อทีมไม่สำเร็จ");
+  return item;
+}
+
+/** Ensure game row exists on Supabase before pushing PBP (FK). */
+export async function ensureGameOnServer(input: {
+  gameId: string;
+  homeTeamId: string;
+  awayTeamId: string;
+  competitionId?: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const { data, error } = await supabase
+      .from("games")
+      .select("id")
+      .eq("id", input.gameId)
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message };
+    if (data?.id) return { ok: true };
+
+    const { error: insertError } = await supabase.from("games").insert({
+      id: input.gameId,
+      competition_id: input.competitionId ?? DEFAULT_COMPETITION_ID,
+      home_team_id: input.homeTeamId,
+      away_team_id: input.awayTeamId,
+      scheduled_at: new Date().toISOString(),
+      status: "live",
+    });
+    if (insertError) return { ok: false, error: insertError.message };
+
+    await supabase.from("game_states").upsert({
+      game_id: input.gameId,
+      status: "live",
+      period: 1,
+      home_attack_side_period1: "LEFT",
+    });
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "ensure game failed",
+    };
+  }
 }
 
 export async function fetchGames(
@@ -134,14 +226,16 @@ export async function fetchGames(
     ...new Set(rows.flatMap((g) => [g.home_team_id, g.away_team_id])),
   ];
 
-  const { data: teams, error: teamsError } = await supabase
-    .from("teams")
-    .select("id, name, short_name")
-    .in("id", teamIds);
+  let teamMap = new Map<string, TeamRow>();
+  if (teamIds.length > 0) {
+    const { data: teams, error: teamsError } = await supabase
+      .from("teams")
+      .select("id, name, short_name")
+      .in("id", teamIds);
+    if (teamsError) throw teamsError;
+    teamMap = new Map(((teams ?? []) as TeamRow[]).map((t) => [t.id, t]));
+  }
 
-  if (teamsError) throw teamsError;
-
-  const teamMap = new Map(((teams ?? []) as TeamRow[]).map((t) => [t.id, t]));
   const list = rows
     .map((g) => toGameListItem(g, teamMap))
     .filter((g): g is GameListItem => g !== null);

@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { th } from "./i18n/th";
-import { fetchGames, fetchTeamPlayers } from "./lib/game-loader";
+import {
+  DEFAULT_COMPETITION_ID,
+  createGameOnline,
+  fetchGames,
+  fetchTeamPlayers,
+  fetchTeamsOnline,
+} from "./lib/game-loader";
 import {
   type ActiveGameSession,
   type GameListItem,
+  cacheGames,
   saveSession,
 } from "./lib/game-session";
 import type { LocalStore } from "./lib/local-store";
@@ -28,6 +35,13 @@ export function PreGameScreen({ store, online, onStart }: Props) {
   );
   const [busy, setBusy] = useState(false);
   const [playersFromCache, setPlayersFromCache] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [teams, setTeams] = useState<
+    Array<{ id: string; name: string; short_name: string | null }>
+  >([]);
+  const [homeTeamId, setHomeTeamId] = useState("");
+  const [awayTeamId, setAwayTeamId] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const selectedGame = useMemo(
     () => games.find((g) => g.id === selectedId) ?? null,
@@ -41,15 +55,23 @@ export function PreGameScreen({ store, online, onStart }: Props) {
       const result = await fetchGames(store, online);
       setGames(result.games);
       setFromCache(result.fromCache);
-      if (!selectedId && result.games[0]) {
-        setSelectedId(result.games[0].id);
+      setSelectedId((prev) => prev || result.games[0]?.id || "");
+      if (online) {
+        const teamRows = await fetchTeamsOnline();
+        setTeams(teamRows);
+        setHomeTeamId((prev) => prev || teamRows[0]?.id || "");
+        setAwayTeamId((prev) => {
+          if (prev) return prev;
+          const away = teamRows.find((t) => t.id !== teamRows[0]?.id);
+          return away?.id || "";
+        });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "โหลดรายการเกมไม่สำเร็จ");
     } finally {
       setLoading(false);
     }
-  }, [store, online, selectedId]);
+  }, [store, online]);
 
   useEffect(() => {
     void loadGames();
@@ -94,6 +116,31 @@ export function PreGameScreen({ store, online, onStart }: Props) {
     });
   };
 
+  const createMatch = async () => {
+    if (!online) {
+      setError(th.createMatchNeedOnline);
+      return;
+    }
+    setCreating(true);
+    setError("");
+    try {
+      const created = await createGameOnline({
+        competitionId: DEFAULT_COMPETITION_ID,
+        homeTeamId,
+        awayTeamId,
+      });
+      const nextGames = [created, ...games.filter((g) => g.id !== created.id)];
+      setGames(nextGames);
+      await cacheGames(store, nextGames);
+      setSelectedId(created.id);
+      setShowCreate(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : th.createMatchFailed);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const start = async () => {
     if (!selectedGame || selectedPlayers.size !== 5) return;
     const onCourt = players
@@ -107,6 +154,7 @@ export function PreGameScreen({ store, online, onStart }: Props) {
       gameId: selectedGame.id,
       homeTeamId: selectedGame.homeTeamId,
       awayTeamId: selectedGame.awayTeamId,
+      competitionId: DEFAULT_COMPETITION_ID,
       label: `${selectedGame.homeName} vs ${selectedGame.awayName}`,
       onCourt,
       period: 1,
@@ -126,23 +174,80 @@ export function PreGameScreen({ store, online, onStart }: Props) {
         {error && <p className="err">{error}</p>}
         {!loading && games.length === 0 && <p>{th.noGames}</p>}
 
-        {games.length > 0 && (
-          <>
+        {online && (
+          <div className="row" style={{ marginBottom: "0.75rem" }}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setShowCreate((v) => !v)}
+            >
+              {showCreate ? th.cancelCreateMatch : th.createMatch}
+            </button>
+          </div>
+        )}
+
+        {showCreate && online && (
+          <div className="pregame-create">
+            <h2>{th.createMatch}</h2>
+            <p className="muted">{th.createMatchHint}</p>
             <label className="field">
-              <span>{th.selectGame}</span>
+              <span>{th.homeTeam}</span>
               <select
-                value={selectedId}
-                onChange={(e) => setSelectedId(e.target.value)}
+                value={homeTeamId}
+                onChange={(e) => setHomeTeamId(e.target.value)}
               >
-                {games.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.label} ({g.status})
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
                   </option>
                 ))}
               </select>
             </label>
-            {fromCache && <p className="muted">{th.gamesFromCache}</p>}
-            {!online && <p className="muted">{th.offlineGameList}</p>}
+            <label className="field">
+              <span>{th.awayTeam}</span>
+              <select
+                value={awayTeamId}
+                onChange={(e) => setAwayTeamId(e.target.value)}
+              >
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={creating || !homeTeamId || !awayTeamId}
+              onClick={() => void createMatch()}
+            >
+              {creating ? th.creatingMatch : th.createMatchSubmit}
+            </button>
+          </div>
+        )}
+
+        {(games.length > 0 || !loading) && (
+          <>
+            {games.length > 0 && (
+              <>
+                <label className="field">
+                  <span>{th.selectGame}</span>
+                  <select
+                    value={selectedId}
+                    onChange={(e) => setSelectedId(e.target.value)}
+                  >
+                    {games.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.label} ({g.status})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {fromCache && <p className="muted">{th.gamesFromCache}</p>}
+                {!online && <p className="muted">{th.offlineGameList}</p>}
+              </>
+            )}
 
             {selectedGame && (
               <div className="pregame-roster">
