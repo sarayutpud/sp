@@ -148,6 +148,7 @@ export function PlayersPage() {
           {players.isError && (
             <p className="err">{(players.error as Error).message}</p>
           )}
+          <div className="table-scroll">
           <table className="data-table">
             <thead>
               <tr>
@@ -189,6 +190,7 @@ export function PlayersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </section>
       </div>
     </div>

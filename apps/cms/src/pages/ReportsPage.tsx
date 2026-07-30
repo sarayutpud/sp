@@ -91,6 +91,7 @@ export function ReportsPage() {
         {games.isError && (
           <p className="err">{(games.error as Error).message}</p>
         )}
+        <div className="table-scroll">
         <table className="data-table">
           <thead>
             <tr>
@@ -135,6 +136,7 @@ export function ReportsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       {selectedGame && (
@@ -222,6 +224,7 @@ export function ReportsPage() {
           {hasData && tab === "box" && (
             <section className="panel">
               <h2>Box Score — {teamMap.get(activeTeamId)}</h2>
+              <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -277,6 +280,7 @@ export function ReportsPage() {
                   )}
                 </tbody>
               </table>
+              </div>
             </section>
           )}
 
@@ -286,6 +290,7 @@ export function ReportsPage() {
               <p className="muted report-note">
                 eFG% ปรับค่าสามแต้ม · TS% รวมความแม่นทุกช็อต · PPP = แต้มต่อการยิง
               </p>
+              <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -320,6 +325,7 @@ export function ReportsPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </section>
           )}
 
@@ -327,6 +333,7 @@ export function ReportsPage() {
             <>
               <section className="panel">
                 <h2>โซนการชู้ต — ทีมรวม</h2>
+                <div className="table-scroll">
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -361,6 +368,7 @@ export function ReportsPage() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </section>
 
               <section className="panel">

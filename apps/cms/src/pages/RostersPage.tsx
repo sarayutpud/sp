@@ -118,6 +118,7 @@ export function RostersPage() {
       <div className="grid-2">
         <section className="panel">
           <h2>รายชื่อลงแข่ง ({rosterPlayers.length})</h2>
+          <div className="table-scroll">
           <table className="data-table">
             <thead>
               <tr>
@@ -144,6 +145,7 @@ export function RostersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </section>
 
         <section className="panel">
