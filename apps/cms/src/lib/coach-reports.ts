@@ -1,8 +1,8 @@
 import {
+  type BoxScoreLine,
   effectiveFgPct,
   metersFromBasket,
   trueShootingPct,
-  type BoxScoreLine,
 } from "@sp/rules-engine";
 import type { BoxLine, PbpEvent, Player } from "./types";
 
@@ -62,9 +62,7 @@ export function fmtPct(v: number | null, digits = 1): string {
   return `${(v * 100).toFixed(digits)}%`;
 }
 
-function shotZone(
-  payload: ShotPayload,
-): ShotZone | null {
+function shotZone(payload: ShotPayload): ShotZone | null {
   if (payload.x == null || payload.y == null || !payload.basketSide) {
     if (payload.isThree) return "three";
     return null;
@@ -211,7 +209,10 @@ export function buildPlayerZones(
   teamFilter?: string,
 ): PlayerZoneRow[] {
   const names = new Map(players.map((p) => [p.id, p]));
-  const byPlayer = new Map<string, Record<ShotZone, { fga: number; fgm: number }>>();
+  const byPlayer = new Map<
+    string,
+    Record<ShotZone, { fga: number; fgm: number }>
+  >();
 
   for (const e of events) {
     if (e.type !== "SHOT" || !e.player_id) continue;
@@ -271,9 +272,9 @@ export function buildCoachInsights(
 
   const threeRate = totalFga > 0 ? totalTpa / totalFga : null;
   if (threeRate !== null && threeRate > 0.4) {
-    const team3 = totalTpa > 0 ? players.reduce((s, p) => s + p.tpm, 0) / totalTpa : 0;
-    const suffix =
-      team3 < 0.3 ? " → พิจารณาลดการยิง 3 หรือสร้างลุก open look" : "";
+    const team3 =
+      totalTpa > 0 ? players.reduce((s, p) => s + p.tpm, 0) / totalTpa : 0;
+    const suffix = team3 < 0.3 ? " → พิจารณาลดการยิง 3 หรือสร้างลุก open look" : "";
     insights.push({
       level: team3 < 0.3 ? "warn" : "info",
       text: `ทีมยิงสามแต้ม ${fmtPct(threeRate)} ของจังหวะ — แม่น ${fmtPct(team3)}${suffix}`,
@@ -296,7 +297,9 @@ export function buildCoachInsights(
     }
   }
 
-  const bestEfg = [...players].filter((p) => p.fga >= 3).sort((a, b) => (b.efg ?? 0) - (a.efg ?? 0))[0];
+  const bestEfg = [...players]
+    .filter((p) => p.fga >= 3)
+    .sort((a, b) => (b.efg ?? 0) - (a.efg ?? 0))[0];
   if (bestEfg?.efg != null) {
     insights.push({
       level: "good",
@@ -315,7 +318,12 @@ export function buildCoachInsights(
   }
 
   const paintZone = teamZones.find((z) => z.zone === "paint");
-  if (paintZone && paintZone.fga >= 4 && paintZone.pct !== null && paintZone.pct >= 0.6) {
+  if (
+    paintZone &&
+    paintZone.fga >= 4 &&
+    paintZone.pct !== null &&
+    paintZone.pct >= 0.6
+  ) {
     insights.push({
       level: "good",
       text: "เกมนี้ทีมจบลูกใต้แป้นได้ดี — ควรรักษาแนวทาง drive / cut",
@@ -326,7 +334,9 @@ export function buildCoachInsights(
 }
 
 /** Team totals for summary row */
-export function buildTeamTotals(lines: CoachPlayerLine[]): CoachPlayerLine | null {
+export function buildTeamTotals(
+  lines: CoachPlayerLine[],
+): CoachPlayerLine | null {
   if (lines.length === 0) return null;
   const tot: CoachPlayerLine = {
     playerId: "team",

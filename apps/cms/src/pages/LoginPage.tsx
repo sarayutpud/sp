@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { type FormEvent, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
@@ -16,7 +16,10 @@ export function LoginPage() {
     e.preventDefault();
     setBusy(true);
     setAuthMsg("");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     setBusy(false);
     if (error) {
       if (error.message.toLowerCase().includes("invalid login credentials")) {

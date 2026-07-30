@@ -8,11 +8,11 @@ import { PreGameScreen } from "./PreGameScreen";
 import { th } from "./i18n/th";
 import { exportGameExcel } from "./lib/excel";
 import {
+  type ActiveGameSession,
   clearSession,
   loadSession,
-  type ActiveGameSession,
 } from "./lib/game-session";
-import { createLocalStore, type LocalStore } from "./lib/local-store";
+import { type LocalStore, createLocalStore } from "./lib/local-store";
 import { saveBlob } from "./lib/save-download";
 import { pushOutbox } from "./lib/sync-client";
 
@@ -40,21 +40,18 @@ export function App() {
   const basketSide: BasketSide = session?.homeAttackSide ?? "LEFT";
   const onCourt = session?.onCourt ?? [];
 
-  const refresh = useCallback(
-    async (s: LocalStore, activeGameId: string) => {
-      if (!activeGameId) {
-        setEvents([]);
-        setPending(await s.pendingCount());
-        return;
-      }
-      const list = await s.listEvents(activeGameId);
-      setEvents(list);
+  const refresh = useCallback(async (s: LocalStore, activeGameId: string) => {
+    if (!activeGameId) {
+      setEvents([]);
       setPending(await s.pendingCount());
-      const synced = await s.getMeta("last_synced_at");
-      setLastSynced(synced ? new Date(synced).toLocaleTimeString("th-TH") : "—");
-    },
-    [],
-  );
+      return;
+    }
+    const list = await s.listEvents(activeGameId);
+    setEvents(list);
+    setPending(await s.pendingCount());
+    const synced = await s.getMeta("last_synced_at");
+    setLastSynced(synced ? new Date(synced).toLocaleTimeString("th-TH") : "—");
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -162,9 +159,7 @@ export function App() {
     const blob = new Blob([json], { type: "application/json" });
     const name = `sp-backup-${gameId.slice(0, 8)}.json`;
     const result = await saveBlob(blob, name);
-    setSyncMsg(
-      result === "saved" ? th.exportSaved(name) : th.exportCancelled,
-    );
+    setSyncMsg(result === "saved" ? th.exportSaved(name) : th.exportCancelled);
   }, [store, gameId]);
 
   const exportExcel = useCallback(async () => {
@@ -235,10 +230,19 @@ export function App() {
             {" "}
             · {th.lastSynced}: {lastSynced}
           </span>
-          <button type="button" className="btn tiny" onClick={() => void syncNow()}>
+          <button
+            type="button"
+            className="btn tiny"
+            onClick={() => void syncNow()}
+          >
             ซิงก์
           </button>
-          <a className="manual-link" href="/user-manual.html" target="_blank" rel="noreferrer">
+          <a
+            className="manual-link"
+            href="/user-manual.html"
+            target="_blank"
+            rel="noreferrer"
+          >
             คู่มือ
           </a>
         </div>
@@ -249,7 +253,11 @@ export function App() {
           <span className="muted">{th.currentGame}</span>
           <strong>{session.label}</strong>
         </div>
-        <button type="button" className="btn tiny" onClick={() => void handleChangeGame()}>
+        <button
+          type="button"
+          className="btn tiny"
+          onClick={() => void handleChangeGame()}
+        >
           {th.changeGame}
         </button>
       </div>

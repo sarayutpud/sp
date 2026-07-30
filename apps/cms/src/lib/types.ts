@@ -1,5 +1,4 @@
-export const DEFAULT_COMPETITION_ID =
-  "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+export const DEFAULT_COMPETITION_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 export type Team = {
   id: string;

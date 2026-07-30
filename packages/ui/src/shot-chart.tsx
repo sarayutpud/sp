@@ -47,13 +47,52 @@ export function ShotChart({ basketSide, onShot, style }: Props) {
         width="100%"
         height="100%"
         style={{ pointerEvents: "none", display: "block" }}
-        aria-hidden
+        role="img"
       >
-        <rect x="1" y="1" width="278" height="148" fill="none" stroke="#1a237e" strokeWidth="2" />
-        <line x1="140" y1="1" x2="140" y2="149" stroke="#1a237e" strokeWidth="1.5" />
-        <circle cx="140" cy="75" r="18" fill="none" stroke="#1a237e" strokeWidth="1.5" />
-        <rect x="1" y="35" width="58" height="80" fill="none" stroke="#1a237e" strokeWidth="1.5" />
-        <rect x="221" y="35" width="58" height="80" fill="none" stroke="#1a237e" strokeWidth="1.5" />
+        <title>แผนที่สนามบาส</title>
+        <rect
+          x="1"
+          y="1"
+          width="278"
+          height="148"
+          fill="none"
+          stroke="#1a237e"
+          strokeWidth="2"
+        />
+        <line
+          x1="140"
+          y1="1"
+          x2="140"
+          y2="149"
+          stroke="#1a237e"
+          strokeWidth="1.5"
+        />
+        <circle
+          cx="140"
+          cy="75"
+          r="18"
+          fill="none"
+          stroke="#1a237e"
+          strokeWidth="1.5"
+        />
+        <rect
+          x="1"
+          y="35"
+          width="58"
+          height="80"
+          fill="none"
+          stroke="#1a237e"
+          strokeWidth="1.5"
+        />
+        <rect
+          x="221"
+          y="35"
+          width="58"
+          height="80"
+          fill="none"
+          stroke="#1a237e"
+          strokeWidth="1.5"
+        />
         <circle cx="16" cy="75" r="4" fill="#e53935" />
         <circle cx="264" cy="75" r="4" fill="#e53935" />
         <path

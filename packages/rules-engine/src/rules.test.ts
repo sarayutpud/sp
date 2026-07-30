@@ -10,11 +10,7 @@ import {
   isInBonus,
   isPlayerFouledOut,
 } from "./possession.js";
-import {
-  effectiveFgPct,
-  shotAttemptFlags,
-  trueShootingPct,
-} from "./stats.js";
+import { effectiveFgPct, shotAttemptFlags, trueShootingPct } from "./stats.js";
 
 describe("FIBA court", () => {
   it("classifies corner/arc threes vs paint twos", () => {
@@ -65,8 +61,6 @@ describe("possession and fouls", () => {
   it("filters fouled-out players from on-court picks", () => {
     expect(isPlayerFouledOut(5)).toBe(true);
     expect(isInBonus(5)).toBe(true);
-    expect(
-      filterEligibleOnCourt(["a", "b"], { a: 5, b: 2 }),
-    ).toEqual(["b"]);
+    expect(filterEligibleOnCourt(["a", "b"], { a: 5, b: 2 })).toEqual(["b"]);
   });
 });

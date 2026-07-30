@@ -54,7 +54,11 @@ export function RostersPage() {
       .map((r) => {
         const p = byId.get(r.player_id);
         return p
-          ? { rosterId: r.id, ...p, jersey_number: r.jersey_number ?? p.jersey_number }
+          ? {
+              rosterId: r.id,
+              ...p,
+              jersey_number: r.jersey_number ?? p.jersey_number,
+            }
           : null;
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
@@ -103,7 +107,10 @@ export function RostersPage() {
         </label>
         <label className="field-inline">
           ทีม
-          <select value={activeTeamId} onChange={(e) => setTeamId(e.target.value)}>
+          <select
+            value={activeTeamId}
+            onChange={(e) => setTeamId(e.target.value)}
+          >
             {(teams.data ?? []).map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
@@ -119,40 +126,38 @@ export function RostersPage() {
         <section className="panel">
           <h2>รายชื่อลงแข่ง ({rosterPlayers.length})</h2>
           <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>เบอร์</th>
-                <th>ชื่อ</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {rosterPlayers.map((p) => (
-                <tr key={p.rosterId}>
-                  <td>{p.jersey_number ?? "—"}</td>
-                  <td>{p.display_name}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn tiny danger"
-                      onClick={() => removeMut.mutate(p.rosterId)}
-                    >
-                      นำออก
-                    </button>
-                  </td>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>เบอร์</th>
+                  <th>ชื่อ</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rosterPlayers.map((p) => (
+                  <tr key={p.rosterId}>
+                    <td>{p.jersey_number ?? "—"}</td>
+                    <td>{p.display_name}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn tiny danger"
+                        onClick={() => removeMut.mutate(p.rosterId)}
+                      >
+                        นำออก
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
 
         <section className="panel">
           <h2>ผู้เล่นในทีม (ยังไม่ได้ใส่รายชื่อ)</h2>
-          {available.length === 0 && (
-            <p className="muted">ทุกคนอยู่ในรายชื่อแล้ว</p>
-          )}
+          {available.length === 0 && <p className="muted">ทุกคนอยู่ในรายชื่อแล้ว</p>}
           <ul className="pick-list">
             {available.map((p) => (
               <li key={p.id}>
