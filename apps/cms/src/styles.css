@@ -1,0 +1,80 @@
+:root {
+  --bg: #0f1c17;
+  --panel: #1a2e26;
+  --text: #f2efe8;
+  --muted: #a8b5ae;
+  --accent: #e8b86d;
+  --ok: #6bcf8e;
+  --err: #e87a6d;
+  font-family: "Segoe UI", "Sarabun", system-ui, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(ellipse at top, #1e3d32 0%, transparent 55%),
+    var(--bg);
+  min-height: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+.hero {
+  margin-bottom: 2rem;
+}
+
+.brand {
+  margin: 0;
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.hero h1 {
+  margin: 0.25rem 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+
+.lead {
+  color: var(--muted);
+  margin: 0.5rem 0 0;
+}
+
+.panel {
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  border: 1px solid #2d4a3e;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.err {
+  color: var(--err);
+}
+
+ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  line-height: 1.7;
+}

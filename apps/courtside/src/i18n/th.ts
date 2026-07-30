@@ -1,0 +1,15 @@
+export const th = {
+  appTitle: "SP Courtside",
+  syncOnline: "ออนไลน์",
+  syncOffline: "ออฟไลน์",
+  syncPending: (n: number) => `ค้างซิงก์ ${n} รายการ`,
+  lastSynced: "ซิงก์ล่าสุด",
+  made: "เข้า",
+  missed: "ไม่เข้า",
+  selectPlayer: "เลือกผู้เล่นบนสนาม",
+  undo: "เลิกทำ (Ctrl+Z)",
+  backup: "สำรองเกมนี้",
+  exportExcel: "ส่งออก Excel",
+  preGame: "ตรวจก่อนเริ่มเกม",
+  shotPrompt: "คลิกบนแผนที่สนามเพื่อบันทึกช็อต",
+} as const;

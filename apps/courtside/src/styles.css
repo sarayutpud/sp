@@ -1,0 +1,159 @@
+:root {
+  --bg: #101820;
+  --panel: #1b2834;
+  --line: #2f4354;
+  --text: #f4f1ea;
+  --muted: #8fa3b5;
+  --accent: #f0a202;
+  --ok: #3ddc97;
+  --danger: #ef476f;
+  font-family: "Segoe UI", "Sarabun", system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--line);
+  background: #0c1218;
+}
+
+.brand {
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+
+.muted {
+  color: #8fa3b5;
+  font-size: 0.9rem;
+}
+
+.sync {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.92rem;
+}
+
+.sync .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+
+.sync[data-state="off"] .dot {
+  background: var(--danger);
+}
+
+.main {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1rem;
+  padding: 1rem;
+  flex: 1;
+}
+
+@media (max-width: 900px) {
+  .main {
+    grid-template-columns: 1fr;
+  }
+}
+
+.court-panel h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+}
+
+.card h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.btn {
+  border: 1px solid var(--line);
+  background: #243444;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: #1a1200;
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.btn.block {
+  width: 100%;
+  margin-top: 0.4rem;
+  text-align: left;
+}
+
+.players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.log {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #8fa3b5;
+  font-size: 0.88rem;
+  max-height: 160px;
+  overflow: auto;
+}

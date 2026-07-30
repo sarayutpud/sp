@@ -1,0 +1,33 @@
+{
+  "name": "@sp/courtside",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome check src",
+    "test": "echo \"no tests yet\"",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev"
+  },
+  "dependencies": {
+    "@sp/rules-engine": "workspace:*",
+    "@sp/shared-types": "workspace:*",
+    "@sp/sync-protocol": "workspace:*",
+    "@sp/ui": "workspace:*",
+    "exceljs": "^4.4.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hotkeys-hook": "^4.6.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.6"
+  }
+}
