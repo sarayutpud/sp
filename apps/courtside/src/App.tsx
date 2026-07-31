@@ -2,6 +2,7 @@ import {
   attackSideForPeriod,
   isInBonus,
   isPlayerFouledOut,
+  isThreePointAttempt,
   shotAttemptFlags,
 } from "@sp/rules-engine";
 import type {
@@ -247,11 +248,45 @@ export function App() {
   const syncingRef = useRef(false);
 
   const gameId = session?.gameId ?? "";
-  const basketSide: BasketSide = useMemo(() => {
+  const homeBasketSide: BasketSide = useMemo(() => {
     if (!session) return "LEFT";
-    const isHome = session.activeSide === "HOME";
-    return attackSideForPeriod(session.homeAttackSide, session.period, isHome);
+    return attackSideForPeriod(session.homeAttackSide, session.period, true);
   }, [session]);
+  const awayBasketSide: BasketSide = useMemo(() => {
+    if (!session) return "RIGHT";
+    return attackSideForPeriod(session.homeAttackSide, session.period, false);
+  }, [session]);
+  const basketSide: BasketSide =
+    session?.activeSide === "AWAY" ? awayBasketSide : homeBasketSide;
+
+  /** Reclassify 2P/3P from the shooter's attack basket (both teams). */
+  const resolveShotForSide = useCallback(
+    (shot: ShotChartClick, side: "HOME" | "AWAY"): ShotChartClick => {
+      if (!session) return shot;
+      const sideBasket =
+        side === "HOME" ? homeBasketSide : awayBasketSide;
+      return {
+        x: shot.x,
+        y: shot.y,
+        basketSide: sideBasket,
+        isThree: isThreePointAttempt(
+          { x: shot.x, y: shot.y },
+          sideBasket,
+        ),
+      };
+    },
+    [session, homeBasketSide, awayBasketSide],
+  );
+
+  const shotPreview = useMemo(() => {
+    if (!session || wizard.step === "idle" || !("shot" in wizard)) return null;
+    const pt = { x: wizard.shot.x, y: wizard.shot.y };
+    return {
+      homeIsThree: isThreePointAttempt(pt, homeBasketSide),
+      awayIsThree: isThreePointAttempt(pt, awayBasketSide),
+    };
+  }, [session, wizard, homeBasketSide, awayBasketSide]);
+
   const onCourt = session ? session.teams[session.activeSide].onCourt : [];
   const bench = session ? session.teams[session.activeSide].bench : [];
   const scores = useMemo(() => {
@@ -436,10 +471,11 @@ export function App() {
       const teamId = teamIdForSide(session, side);
       const flags = shotAttemptFlags({ made: true, fouledOnShot: false });
       const h = tick();
+      const resolved = resolveShotForSide(shot, side);
       const event = shotEvent(
         session,
         h,
-        shot,
+        resolved,
         true,
         playerId,
         flags,
@@ -455,7 +491,7 @@ export function App() {
       await refresh(store, session.gameId);
       setWizard({ step: "idle" });
     },
-    [store, session, tick, refresh],
+    [store, session, tick, refresh, resolveShotForSide],
   );
 
   const persistShotMissThen = useCallback(
@@ -464,18 +500,28 @@ export function App() {
       const teamId = teamIdForSide(session, side);
       const flags = shotAttemptFlags({ made: false, fouledOnShot: false });
       const h = tick();
-      const event = shotEvent(session, h, shot, false, playerId, flags, null, teamId);
+      const resolved = resolveShotForSide(shot, side);
+      const event = shotEvent(
+        session,
+        h,
+        resolved,
+        false,
+        playerId,
+        flags,
+        null,
+        teamId,
+      );
       await store.appendEvent(event);
       await refresh(store, session.gameId);
       setWizard({
         step: "afterMiss",
-        shot,
+        shot: resolved,
         playerId,
         side,
         shotEventId: event.eventId,
       });
     },
-    [store, session, tick, refresh],
+    [store, session, tick, refresh, resolveShotForSide],
   );
 
   const completeFoul = useCallback(
@@ -936,6 +982,10 @@ export function App() {
           <div className="court-chart-wrap">
             <ShotChart
               basketSide={basketSide}
+              homeBasketSide={homeBasketSide}
+              awayBasketSide={awayBasketSide}
+              homeCode={session.homeTeamCode}
+              awayCode={session.awayTeamCode}
               onShot={(shot) => openWizard({ step: "outcome", shot })}
             />
           </div>
@@ -996,11 +1046,22 @@ export function App() {
             onClick={() => setWizard({ step: "idle" })}
           />
           <div className="wizard-sheet">
-            {wizard.step === "outcome" && (
+            {wizard.step === "outcome" && session && shotPreview && (
               <>
                 <p>
-                  {wizard.shot.isThree ? "3PT" : "2PT"} @ (
-                  {wizard.shot.x.toFixed(2)}, {wizard.shot.y.toFixed(2)})
+                  จุด ({wizard.shot.x.toFixed(2)}, {wizard.shot.y.toFixed(2)})
+                </p>
+                <p className="shot-side-preview">
+                  <strong>{session.homeTeamCode}</strong>{" "}
+                  {shotPreview.homeIsThree ? "3PT" : "2PT"}
+                  <span className="muted"> · ตะกร้า{homeBasketSide === "LEFT" ? "ซ้าย" : "ขวา"}</span>
+                  {"  |  "}
+                  <strong>{session.awayTeamCode}</strong>{" "}
+                  {shotPreview.awayIsThree ? "3PT" : "2PT"}
+                  <span className="muted"> · ตะกร้า{awayBasketSide === "LEFT" ? "ซ้าย" : "ขวา"}</span>
+                </p>
+                <p className="muted" style={{ fontSize: "0.82rem" }}>
+                  เลือกฝั่งผู้ยิงทีหลัง — ระบบจะนับ 2P/3P ตามตะกร้าของทีมนั้น
                 </p>
                 <div className="row outcome-row">
                   <button
@@ -1040,16 +1101,24 @@ export function App() {
               </>
             )}
 
-            {wizard.step === "player" && session && (
+            {wizard.step === "player" && session && shotPreview && (
               <>
                 <h2>{th.selectPlayerBoth}</h2>
+                <p className="shot-side-preview">
+                  <strong>{session.homeTeamCode}</strong>{" "}
+                  {shotPreview.homeIsThree ? "3PT" : "2PT"}
+                  {"  |  "}
+                  <strong>{session.awayTeamCode}</strong>{" "}
+                  {shotPreview.awayIsThree ? "3PT" : "2PT"}
+                </p>
                 <DualTeamPick
                   session={session}
                   onPick={(id, side) => {
+                    const resolved = resolveShotForSide(wizard.shot, side);
                     if (wizard.made) {
                       openWizard({
                         step: "assist",
-                        shot: wizard.shot,
+                        shot: resolved,
                         playerId: id,
                         side,
                       });

@@ -177,13 +177,13 @@ body {
 .court-chart-wrap {
   width: 100%;
   max-width: min(100%, 760px);
-  max-height: min(38vh, 340px);
+  max-height: min(46vh, 400px);
   margin: 0 auto;
 }
 
 .court-chart-wrap > button {
   aspect-ratio: 28 / 15 !important;
-  max-height: min(38vh, 340px) !important;
+  max-height: min(46vh, 400px) !important;
   width: 100% !important;
   height: auto !important;
 }
@@ -591,7 +591,7 @@ body {
 
   .court-chart-wrap,
   .court-chart-wrap > button {
-    max-height: min(32vh, 280px) !important;
+    max-height: min(40vh, 360px) !important;
   }
 
   .action-bar-grid .btn {
@@ -602,6 +602,13 @@ body {
   .log {
     max-height: 80px;
   }
+}
+
+.shot-side-preview {
+  margin: 0.35rem 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--yellow);
 }
 
 .foul-warn {

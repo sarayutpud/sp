@@ -10,13 +10,31 @@ export type ShotChartClick = {
 };
 
 type Props = {
+  /** Attack basket for the focused team (highlight only; both ends are drawable). */
   basketSide: BasketSide;
   onShot: (shot: ShotChartClick) => void;
   style?: CSSProperties;
+  homeCode?: string;
+  awayCode?: string;
+  /** When set, click preview uses these baskets for dual 2P/3P hint. */
+  homeBasketSide?: BasketSide;
+  awayBasketSide?: BasketSide;
 };
 
-/** FIBA half/full court click target — normalized 0–1 coords */
-export function ShotChart({ basketSide, onShot, style }: Props) {
+/** FIBA full court click target — normalized 0–1 coords */
+export function ShotChart({
+  basketSide,
+  onShot,
+  style,
+  homeCode = "HOME",
+  awayCode = "AWAY",
+  homeBasketSide,
+  awayBasketSide,
+}: Props) {
+  const homeBasket = homeBasketSide ?? basketSide;
+  const awayBasket =
+    awayBasketSide ?? (basketSide === "LEFT" ? "RIGHT" : "LEFT");
+
   return (
     <button
       type="button"
@@ -36,8 +54,10 @@ export function ShotChart({ basketSide, onShot, style }: Props) {
       }}
       onClick={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
-        const x = (e.clientX - rect.left) / rect.width;
-        const y = (e.clientY - rect.top) / rect.height;
+        const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+        const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+        // Preliminary label uses focused team's basket; final 2P/3P is
+        // recomputed when the shooter side is chosen.
         const isThree = isThreePointAttempt({ x, y }, basketSide);
         onShot({ x, y, isThree, basketSide });
       }}
@@ -75,6 +95,7 @@ export function ShotChart({ basketSide, onShot, style }: Props) {
           stroke="#1a237e"
           strokeWidth="1.5"
         />
+        {/* Key / paint */}
         <rect
           x="1"
           y="35"
@@ -93,30 +114,115 @@ export function ShotChart({ basketSide, onShot, style }: Props) {
           stroke="#1a237e"
           strokeWidth="1.5"
         />
-        <circle cx="16" cy="75" r="4" fill="#e53935" />
-        <circle cx="264" cy="75" r="4" fill="#e53935" />
+        {/* Baskets */}
+        <circle
+          cx="16"
+          cy="75"
+          r="5"
+          fill={basketSide === "LEFT" ? "#e53935" : "#1a237e"}
+          opacity={basketSide === "LEFT" ? 1 : 0.55}
+        />
+        <circle
+          cx="264"
+          cy="75"
+          r="5"
+          fill={basketSide === "RIGHT" ? "#e53935" : "#1a237e"}
+          opacity={basketSide === "RIGHT" ? 1 : 0.55}
+        />
+        {/* Left 3PT: corner lines + arc (r=67.5, corner y=9/141, join x≈30.15) */}
+        <line
+          x1="1"
+          y1="9"
+          x2="30.15"
+          y2="9"
+          stroke="#1a237e"
+          strokeWidth="1.4"
+          opacity={0.85}
+        />
+        <line
+          x1="1"
+          y1="141"
+          x2="30.15"
+          y2="141"
+          stroke="#1a237e"
+          strokeWidth="1.4"
+          opacity={0.85}
+        />
         <path
-          d="M 16 75 m -67.5 0 a 67.5 67.5 0 0 1 67.5 -67.5"
+          d="M 30.15 9 A 67.5 67.5 0 0 1 30.15 141"
           fill="none"
           stroke="#1a237e"
-          strokeWidth="1"
-          opacity="0.5"
+          strokeWidth="1.4"
+          opacity={0.85}
         />
+        {/* Right 3PT */}
+        <line
+          x1="279"
+          y1="9"
+          x2="249.85"
+          y2="9"
+          stroke="#1a237e"
+          strokeWidth="1.4"
+          opacity={0.85}
+        />
+        <line
+          x1="279"
+          y1="141"
+          x2="249.85"
+          y2="141"
+          stroke="#1a237e"
+          strokeWidth="1.4"
+          opacity={0.85}
+        />
+        <path
+          d="M 249.85 9 A 67.5 67.5 0 0 0 249.85 141"
+          fill="none"
+          stroke="#1a237e"
+          strokeWidth="1.4"
+          opacity={0.85}
+        />
+        <text
+          x="22"
+          y="14"
+          fill="#1a237e"
+          fontSize="8"
+          fontWeight="700"
+          opacity="0.7"
+        >
+          L
+        </text>
+        <text
+          x="250"
+          y="14"
+          fill="#1a237e"
+          fontSize="8"
+          fontWeight="700"
+          opacity="0.7"
+        >
+          R
+        </text>
       </svg>
       <span
         style={{
           position: "absolute",
           bottom: 8,
           left: 8,
-          fontSize: 12,
+          fontSize: 11,
           color: "#1a237e",
-          background: "rgba(255,214,0,0.9)",
+          background: "rgba(255,214,0,0.92)",
           padding: "2px 6px",
           fontWeight: 700,
           borderRadius: 4,
+          maxWidth: "92%",
+          textAlign: "left",
+          lineHeight: 1.25,
         }}
       >
-        คลิกตำแหน่งช็อต · ตะกร้า{basketSide === "LEFT" ? "ซ้าย" : "ขวา"}
+        คลิกตำแหน่งช็อต · โฟกัสตะกร้า
+        {basketSide === "LEFT" ? "ซ้าย" : "ขวา"}
+        <br />
+        {homeCode}→{homeBasket === "LEFT" ? "L" : "R"} · {awayCode}→
+        {awayBasket === "LEFT" ? "L" : "R"} · 2P/3P ตามฝั่งที่ยิง
       </span>
     </button>
   );

@@ -13,11 +13,37 @@ import {
 import { effectiveFgPct, shotAttemptFlags, trueShootingPct } from "./stats.js";
 
 describe("FIBA court", () => {
-  it("classifies corner/arc threes vs paint twos", () => {
-    const paint = isThreePointAttempt({ x: 0.08, y: 0.5 }, "LEFT");
-    expect(paint).toBe(false);
-    const deep = isThreePointAttempt({ x: 0.35, y: 0.5 }, "LEFT");
-    expect(deep).toBe(true);
+  it("classifies paint as 2PT and top-of-key as 3PT (left basket)", () => {
+    expect(isThreePointAttempt({ x: 0.08, y: 0.5 }, "LEFT")).toBe(false);
+    expect(isThreePointAttempt({ x: 0.35, y: 0.5 }, "LEFT")).toBe(true);
+  });
+
+  it("classifies paint as 2PT and top-of-key as 3PT (right basket)", () => {
+    expect(isThreePointAttempt({ x: 0.92, y: 0.5 }, "RIGHT")).toBe(false);
+    expect(isThreePointAttempt({ x: 0.65, y: 0.5 }, "RIGHT")).toBe(true);
+  });
+
+  it("treats corner strip as 3PT for both baskets", () => {
+    // Near left baseline, outside 0.9m sideline line
+    expect(isThreePointAttempt({ x: 0.05, y: 0.03 }, "LEFT")).toBe(true);
+    expect(isThreePointAttempt({ x: 0.05, y: 0.97 }, "LEFT")).toBe(true);
+    // Same spot vs right basket is still outside that basket's corner strip
+    expect(isThreePointAttempt({ x: 0.95, y: 0.03 }, "RIGHT")).toBe(true);
+    expect(isThreePointAttempt({ x: 0.95, y: 0.97 }, "RIGHT")).toBe(true);
+  });
+
+  it("does not treat wing inside the arc as 3PT", () => {
+    // ~4m from left basket, mid-wing (inside arc, not in corner strip)
+    expect(isThreePointAttempt({ x: 0.2, y: 0.35 }, "LEFT")).toBe(false);
+    expect(isThreePointAttempt({ x: 0.8, y: 0.35 }, "RIGHT")).toBe(false);
+  });
+
+  it("same click can be 2PT for one basket and 3PT for the other", () => {
+    // Deep on the left half: 3 vs LEFT, but far from RIGHT → also 3 vs RIGHT
+    // Use a spot inside left paint: 2 vs LEFT, 3 vs RIGHT (distance to right basket is huge)
+    const inLeftPaint = { x: 0.08, y: 0.5 };
+    expect(isThreePointAttempt(inLeftPaint, "LEFT")).toBe(false);
+    expect(isThreePointAttempt(inLeftPaint, "RIGHT")).toBe(true);
   });
 
   it("flips attack side after halftime", () => {
