@@ -12,7 +12,7 @@ export function LoginPage() {
   const [authMsg, setAuthMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
-  if (!loading && session) return <Navigate to="/players" replace />;
+  if (!loading && session) return <Navigate to="/" replace />;
 
   async function onLogin(e: FormEvent) {
     e.preventDefault();

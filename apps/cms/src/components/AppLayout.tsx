@@ -3,10 +3,11 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 
 const NAV = [
+  { to: "/", label: "เริ่มต้น", mark: "1", end: true },
   { to: "/players", label: "ผู้เล่น", mark: "P" },
-  { to: "/rosters", label: "รายชื่อ", mark: "R" },
   { to: "/games", label: "แมตช์", mark: "M" },
   { to: "/reports", label: "รายงาน", mark: "Σ" },
+  { to: "/rosters", label: "บัญชีฤดูกาล", mark: "R", optional: true },
 ] as const;
 
 export function AppLayout() {
@@ -32,7 +33,7 @@ export function AppLayout() {
             <img className="app-logo" src="/sp-logo.png" alt="SP FITNESS" />
             <div className="app-brand-text">
               <strong>SP CMS</strong>
-              <span>จัดการผู้เล่น · รายงานสถิติ</span>
+              <span>เครื่องมือโค้ช · ทีมเรา</span>
             </div>
           </div>
         </div>
@@ -62,9 +63,16 @@ export function AppLayout() {
             <NavLink
               key={item.to}
               to={item.to}
+              end={"end" in item ? item.end : undefined}
               onClick={closeMenu}
               className={({ isActive }) =>
-                isActive ? "nav-link active" : "nav-link"
+                [
+                  "nav-link",
+                  isActive ? "active" : "",
+                  "optional" in item && item.optional ? "optional" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")
               }
             >
               <span className="nav-mark" aria-hidden="true">

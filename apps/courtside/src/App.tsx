@@ -172,7 +172,7 @@ export function App() {
   const gameId = session?.gameId ?? "";
   const basketSide: BasketSide = useMemo(() => {
     if (!session) return "LEFT";
-    const isHome = session.ourTeamId === session.homeTeamId;
+    const isHome = session.ourSide === "HOME";
     return attackSideForPeriod(
       session.homeAttackSide,
       session.period,
@@ -665,10 +665,12 @@ export function App() {
             ))}
           </div>
           {wizard.step === "idle" && <h1>{th.shotPrompt}</h1>}
-          <ShotChart
-            basketSide={basketSide}
-            onShot={(shot) => openWizard({ step: "outcome", shot })}
-          />
+          <div className="court-chart-wrap">
+            <ShotChart
+              basketSide={basketSide}
+              onShot={(shot) => openWizard({ step: "outcome", shot })}
+            />
+          </div>
         </section>
 
         <aside className="side">

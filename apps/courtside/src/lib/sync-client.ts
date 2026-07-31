@@ -43,8 +43,9 @@ export async function pushOutbox(
   if (session) {
     const ensured = await ensureGameOnServer({
       gameId: session.gameId,
-      homeTeamId: session.homeTeamId,
-      awayTeamId: session.awayTeamId,
+      ourTeamId: session.ourTeamId,
+      opponentName: session.opponentName,
+      ourSide: session.ourSide,
       competitionId: session.competitionId,
     });
     if (!ensured.ok) {

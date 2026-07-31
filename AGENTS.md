@@ -23,5 +23,13 @@ The apps require a Supabase backend. For the cloud VM there is a fully local opt
 - `supabase/migrations/` contains a **baseline schema migration** (copy of `supabase/schema.sql`) plus a **local role-grants migration**. These exist so `supabase start` applies the schema before `supabase/seed.sql` runs, and so the `anon`/`authenticated` roles get the table grants that hosted Supabase provides by default (RLS still enforces access). Without them the CLI's auto-seed fails and tears the stack down. They only affect local CLI dev; the team deploys against an already-migrated hosted project.
 - Seed creates a ready CMS login: **`sp@test.com` / `sptest`** plus demo teams/players/games.
 
+### Courtside Windows release artifacts
+Always copy installers/exe to **`D:\sp\releases\windows`** (see `releases/windows/README.md`).
+
+```powershell
+pnpm --filter @sp/courtside tauri:release
+# or: .\scripts\build-courtside-windows.ps1
+```
+
 ### Pointing the apps at a backend
 Vite reads env from the **repo-root `.env`** (`apps/*/vite.config.ts` set `envDir` to the root). `.env` is gitignored. Required keys: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (or `VITE_SUPABASE_PUBLISHABLE_KEY`). For local Supabase use the `API_URL` and `ANON_KEY` from `supabase status`. The `scripts/seed-default-data.mjs` (`pnpm seed`) also reads `SUPABASE_SERVICE_ROLE_KEY` from `.env` (only needed against a hosted project; the local `seed.sql` already creates the user).

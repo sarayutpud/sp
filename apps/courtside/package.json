@@ -10,7 +10,8 @@
     "lint": "biome check src",
     "test": "echo \"no tests yet\"",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev"
+    "tauri:dev": "tauri dev",
+    "tauri:release": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../scripts/build-courtside-windows.ps1"
   },
   "dependencies": {
     "@sp/rules-engine": "workspace:*",

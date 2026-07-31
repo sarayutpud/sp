@@ -1,10 +1,21 @@
-# Windows builds
+# Windows builds — always publish artifacts here: `D:\sp\releases\windows`
 
 Local artifacts (gitignored):
 
 - `SP-Courtside.exe` — portable
 - `SP-Courtside-Setup-0.1.2.exe` — NSIS installer
+- `SP-Courtside-0.1.2.msi` — MSI (when produced)
 
-Built with Supabase direct sync (no Nest API).
+Build (from repo root):
 
-Upload via GitHub Releases after `gh auth login`.
+```powershell
+pnpm --filter @sp/courtside tauri:release
+```
+
+Or:
+
+```powershell
+.\scripts\build-courtside-windows.ps1
+```
+
+Output is always copied to this folder.

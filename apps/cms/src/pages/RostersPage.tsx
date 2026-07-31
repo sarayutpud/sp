@@ -85,9 +85,10 @@ export function RostersPage() {
   return (
     <div className="page-block">
       <header className="page-head">
-        <h1>จัดสรรรายชื่อ</h1>
+        <h1>บัญชีฤดูกาล (ไม่บังคับ)</h1>
         <p className="muted">
-          กำหนดผู้เล่นที่ลงแข่งในแต่ละรายการ — Courtside จะดึงรายชื่อนี้ไป sync
+          รายชื่อผู้มีสิทธิ์ในรายการแข่งขัน — เป็นตัวเลือกสำหรับฤดูกาลยาว
+          รายชื่อลงแข่งจริงจัดที่หน้าแมตช์
         </p>
       </header>
 

@@ -41,6 +41,13 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100%;
+  height: 100%;
 }
 
 body {
@@ -124,6 +131,8 @@ textarea {
 .login-page {
   min-height: 100vh;
   min-height: 100dvh;
+  height: auto;
+  overflow: auto;
   display: grid;
   place-items: center;
   padding: 1.5rem;
@@ -204,12 +213,14 @@ textarea {
   font-weight: 700;
 }
 
-/* App shell */
+/* App shell — fill viewport without page-level overflow when maximized */
 .app-shell {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .app-top {
@@ -347,9 +358,11 @@ textarea {
 
 .app-body {
   display: grid;
-  grid-template-columns: 224px 1fr;
+  grid-template-columns: 224px minmax(0, 1fr);
   flex: 1;
+  min-height: 0;
   position: relative;
+  overflow: hidden;
 }
 
 .nav-overlay {
@@ -364,6 +377,8 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .nav-link {
@@ -424,10 +439,20 @@ textarea {
 }
 
 .app-main {
-  padding: clamp(1rem, 3vw, 1.75rem);
+  padding: clamp(0.85rem, 2.5vw, 1.5rem);
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: fadeIn 0.3s ease both;
+}
+
+.page-block {
   max-width: 1120px;
   width: 100%;
-  animation: fadeIn 0.3s ease both;
+  min-width: 0;
 }
 
 @keyframes fadeIn {
@@ -452,6 +477,19 @@ textarea {
   letter-spacing: 0.01em;
 }
 
+.team-edit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+@media (max-width: 720px) {
+  .team-edit-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -460,6 +498,7 @@ textarea {
   margin-bottom: 1.15rem;
   box-shadow: var(--shadow-sm);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
+  min-width: 0;
 }
 
 .panel:hover {
@@ -495,8 +534,9 @@ textarea {
 
 .grid-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.15rem;
+  align-items: start;
 }
 
 .stack {
@@ -1090,4 +1130,90 @@ textarea {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* Guide page */
+.guide-hero {
+  margin-bottom: 1.5rem;
+}
+
+.guide-steps li {
+  margin-bottom: 0.65rem;
+}
+
+.guide-steps a {
+  color: var(--indigo);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.guide-steps a:hover {
+  text-decoration: underline;
+}
+
+.guide-faq {
+  margin: 0;
+}
+
+.guide-faq dt {
+  font-weight: 700;
+  color: var(--navy);
+  margin-top: 0.85rem;
+}
+
+.guide-faq dt:first-child {
+  margin-top: 0;
+}
+
+.guide-faq dd {
+  margin: 0.25rem 0 0;
+}
+
+/* Game side chip */
+.side-chip {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #e8ebff;
+  color: var(--navy);
+}
+
+.side-fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.side-fieldset legend {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.radio-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.nav-link.optional {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.nav-link.optional.active {
+  color: var(--navy-deep);
+}
+
+.data-table .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }

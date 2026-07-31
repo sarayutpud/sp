@@ -2,12 +2,24 @@ import { supabase } from "./supabase";
 import type {
   BoxLine,
   Competition,
+  GameRosterRow,
   GameRow,
+  OurSide,
   PbpEvent,
   Player,
   RosterRow,
   Team,
 } from "./types";
+
+const GAME_SELECT =
+  "id,status,scheduled_at,competition_id,our_team_id,opponent_name,our_side,home_team_id,away_team_id";
+
+function legacySides(ourTeamId: string, ourSide: OurSide) {
+  return {
+    home_team_id: ourSide === "HOME" ? ourTeamId : null,
+    away_team_id: ourSide === "AWAY" ? ourTeamId : null,
+  };
+}
 
 export async function fetchTeams(): Promise<Team[]> {
   const { data, error } = await supabase
@@ -91,7 +103,7 @@ export async function removeFromRoster(id: string) {
 export async function fetchGames(): Promise<GameRow[]> {
   const { data, error } = await supabase
     .from("games")
-    .select("id,status,scheduled_at,home_team_id,away_team_id,competition_id")
+    .select(GAME_SELECT)
     .order("scheduled_at", { ascending: false, nullsFirst: false });
   if (error) throw error;
   return (data ?? []) as GameRow[];
@@ -99,24 +111,28 @@ export async function fetchGames(): Promise<GameRow[]> {
 
 export async function createGame(input: {
   competition_id: string;
-  home_team_id: string;
-  away_team_id: string;
+  our_team_id: string;
+  opponent_name: string;
+  our_side: OurSide;
   scheduled_at: string | null;
   status?: string;
+  home_attack_side?: "LEFT" | "RIGHT";
 }): Promise<GameRow> {
-  if (input.home_team_id === input.away_team_id) {
-    throw new Error("ทีมเหย้าและทีมเยือนต้องต่างกัน");
-  }
+  const opponent = input.opponent_name.trim();
+  if (!opponent) throw new Error("ใส่ชื่อคู่แข่ง");
+  const sides = legacySides(input.our_team_id, input.our_side);
   const { data, error } = await supabase
     .from("games")
     .insert({
       competition_id: input.competition_id,
-      home_team_id: input.home_team_id,
-      away_team_id: input.away_team_id,
+      our_team_id: input.our_team_id,
+      opponent_name: opponent,
+      our_side: input.our_side,
+      ...sides,
       scheduled_at: input.scheduled_at,
       status: input.status ?? "scheduled",
     })
-    .select("id,status,scheduled_at,home_team_id,away_team_id,competition_id")
+    .select(GAME_SELECT)
     .single();
   if (error) throw error;
 
@@ -125,7 +141,7 @@ export async function createGame(input: {
     game_id: game.id,
     status: game.status,
     period: 1,
-    home_attack_side_period1: "LEFT",
+    home_attack_side_period1: input.home_attack_side ?? "LEFT",
   });
   if (stateError) throw stateError;
   return game;
@@ -136,6 +152,99 @@ export async function updateGameStatus(id: string, status: string) {
     .from("games")
     .update({ status })
     .eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateTeam(
+  id: string,
+  input: { name: string; short_name: string | null },
+) {
+  const { error } = await supabase
+    .from("teams")
+    .update({
+      name: input.name.trim(),
+      short_name: input.short_name?.trim() || null,
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateGame(
+  id: string,
+  input: {
+    opponent_name: string;
+    our_side: OurSide;
+    scheduled_at: string | null;
+    our_team_id?: string;
+  },
+) {
+  const opponent = input.opponent_name.trim();
+  if (!opponent) throw new Error("ใส่ชื่อคู่แข่ง");
+  const ourTeamId = input.our_team_id;
+  const sides = ourTeamId
+    ? legacySides(ourTeamId, input.our_side)
+    : {};
+  const { error } = await supabase
+    .from("games")
+    .update({
+      opponent_name: opponent,
+      our_side: input.our_side,
+      scheduled_at: input.scheduled_at,
+      ...(ourTeamId ? { our_team_id: ourTeamId, ...sides } : {}),
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function setGameAttackSide(
+  gameId: string,
+  homeAttackSidePeriod1: "LEFT" | "RIGHT",
+) {
+  const { error } = await supabase
+    .from("game_states")
+    .update({ home_attack_side_period1: homeAttackSidePeriod1 })
+    .eq("game_id", gameId);
+  if (error) throw error;
+}
+
+export async function fetchGameRosters(
+  gameId: string,
+): Promise<GameRosterRow[]> {
+  const { data, error } = await supabase
+    .from("game_rosters")
+    .select("id,game_id,player_id,is_starter,starter_slot")
+    .eq("game_id", gameId);
+  if (error) throw error;
+  return (data ?? []) as GameRosterRow[];
+}
+
+/** Replace dress list for a match. Pass starter player IDs (max 5); others are bench. */
+export async function saveGameRoster(
+  gameId: string,
+  playerIds: string[],
+  starterIds: string[],
+) {
+  const starters = starterIds.slice(0, 5);
+  const starterSet = new Set(starters);
+  const rows = playerIds.map((playerId, i) => {
+    const starterIndex = starters.indexOf(playerId);
+    return {
+      game_id: gameId,
+      player_id: playerId,
+      is_starter: starterSet.has(playerId),
+      starter_slot: starterIndex >= 0 ? starterIndex + 1 : null,
+    };
+  });
+
+  const { error: delError } = await supabase
+    .from("game_rosters")
+    .delete()
+    .eq("game_id", gameId);
+  if (delError) throw delError;
+
+  if (rows.length === 0) return;
+
+  const { error } = await supabase.from("game_rosters").insert(rows);
   if (error) throw error;
 }
 

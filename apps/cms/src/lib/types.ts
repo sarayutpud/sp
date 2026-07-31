@@ -19,13 +19,26 @@ export type Competition = {
   season: string | null;
 };
 
+export type OurSide = "HOME" | "AWAY";
+
 export type GameRow = {
   id: string;
   status: string;
   scheduled_at: string | null;
-  home_team_id: string;
-  away_team_id: string;
   competition_id: string;
+  our_team_id: string;
+  opponent_name: string;
+  our_side: OurSide;
+  home_team_id: string | null;
+  away_team_id: string | null;
+};
+
+export type GameRosterRow = {
+  id: string;
+  game_id: string;
+  player_id: string;
+  is_starter: boolean;
+  starter_slot: number | null;
 };
 
 export type RosterRow = {
@@ -62,3 +75,17 @@ export type BoxLine = {
   tpm: number;
   tpa: number;
 };
+
+export function gameMatchLabel(
+  ourTeamName: string,
+  opponentName: string,
+  ourSide: OurSide,
+): string {
+  return ourSide === "HOME"
+    ? `${ourTeamName} vs ${opponentName}`
+    : `${opponentName} vs ${ourTeamName}`;
+}
+
+export function gameSideLabel(ourSide: OurSide): string {
+  return ourSide === "HOME" ? "เราเป็นเหย้า" : "เราเป็นเยือน";
+}

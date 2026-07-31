@@ -23,10 +23,7 @@ export function SeasonReportPage({ embedded = false }: Props) {
 
   const teamGames = useMemo(
     () =>
-      (games.data ?? []).filter(
-        (g) =>
-          g.home_team_id === activeTeamId || g.away_team_id === activeTeamId,
-      ),
+      (games.data ?? []).filter((g) => g.our_team_id === activeTeamId),
     [games.data, activeTeamId],
   );
 

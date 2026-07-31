@@ -9,7 +9,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "format": "biome check --write .",
-    "seed": "node scripts/seed-default-data.mjs"
+    "seed": "node scripts/seed-default-data.mjs",
+    "courtside:release": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-courtside-windows.ps1"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

@@ -4,6 +4,9 @@ import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { fetchGames, fetchPbp, fetchPlayers, fetchTeams } from "../lib/api";
 import {
+  gameMatchLabel,
+} from "../lib/types";
+import {
   buildCoachInsights,
   buildCoachPlayerLines,
   buildPlayerZones,
@@ -74,16 +77,16 @@ export function ReportsPage() {
   const selectedGame = games.data?.find((g) => g.id === selectedGameId);
 
   const activeTeamId =
-    teamFilter || selectedGame?.home_team_id || teams.data?.[0]?.id || "";
+    teamFilter || selectedGame?.our_team_id || teams.data?.[0]?.id || "";
 
-  const oppTeamId = selectedGame
-    ? activeTeamId === selectedGame.home_team_id
-      ? selectedGame.away_team_id
-      : selectedGame.home_team_id
-    : "";
+  const oppTeamId = "";
 
   const matchLabel = selectedGame
-    ? `${teamMap.get(selectedGame.home_team_id) ?? "?"} vs ${teamMap.get(selectedGame.away_team_id) ?? "?"}`
+    ? gameMatchLabel(
+        teamMap.get(selectedGame.our_team_id) ?? "?",
+        selectedGame.opponent_name,
+        selectedGame.our_side,
+      )
     : "";
 
   const pbp = useQuery({
@@ -285,10 +288,17 @@ export function ReportsPage() {
                 >
                   <td className="cell-stack">
                     <span className="cell-primary">
-                      {teamMap.get(g.home_team_id) ?? "?"} vs{" "}
-                      {teamMap.get(g.away_team_id) ?? "?"}
+                      {gameMatchLabel(
+                        teamMap.get(g.our_team_id) ?? "?",
+                        g.opponent_name,
+                        g.our_side,
+                      )}
                     </span>
                     <span className="cell-muted">
+                      <span className="side-chip">
+                        {g.our_side === "HOME" ? "เราเป็นเหย้า" : "เราเป็นเยือน"}
+                      </span>
+                      {" · "}
                       {g.scheduled_at
                         ? new Date(g.scheduled_at).toLocaleString("th-TH")
                         : "—"}
@@ -305,7 +315,7 @@ export function ReportsPage() {
                       className="btn tiny primary"
                       onClick={() => {
                         setSelectedGameId(g.id);
-                        setTeamFilter(g.home_team_id);
+                        setTeamFilter(g.our_team_id);
                         setTab("insights");
                         setShareMsg("");
                       }}
@@ -324,20 +334,9 @@ export function ReportsPage() {
       {selectedGame && (
         <>
           <div className="report-toolbar">
-            <label className="field-inline">
-              วิเคราะห์ทีม
-              <select
-                value={activeTeamId}
-                onChange={(e) => setTeamFilter(e.target.value)}
-              >
-                <option value={selectedGame.home_team_id}>
-                  {teamMap.get(selectedGame.home_team_id)} (เจ้าบ้าน)
-                </option>
-                <option value={selectedGame.away_team_id}>
-                  {teamMap.get(selectedGame.away_team_id)} (เยือน)
-                </option>
-              </select>
-            </label>
+            <span className="muted">
+              วิเคราะห์ทีม: <strong>{teamMap.get(activeTeamId) ?? "ทีมเรา"}</strong>
+            </span>
             <div className="report-tabs">
               {TABS.map((t) => (
                 <button
@@ -537,6 +536,11 @@ export function ReportsPage() {
                 Rating = แต้มต่อการครองบอล 100 ครั้ง · Pace = จำนวนการครองบอลต่อเกม ·
                 eFG% ถ่วงน้ำหนักลูก 3 แต้ม
               </p>
+              {!advanced && (
+                <div className="banner info">
+                  สถิติขั้นสูงบางตัวต้องการข้อมูลคู่แข่ง — โหมดทีมเรายังไม่บันทึกคู่แข่ง
+                </div>
+              )}
               {advanced && (
                 <div className="stat-cards">
                   <div className="stat-card">

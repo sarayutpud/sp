@@ -1,6 +1,8 @@
 import type { BasketSide } from "@sp/shared-types";
 import type { LocalStore } from "./local-store";
 
+export type OurSide = "HOME" | "AWAY";
+
 export type OnCourtPlayer = {
   id: string;
   name: string;
@@ -21,10 +23,12 @@ function normalizePlayer(p: OnCourtPlayer): OnCourtPlayer {
 
 export type ActiveGameSession = {
   gameId: string;
-  homeTeamId: string;
-  awayTeamId: string;
-  /** Team we record stats for (our team only) */
   ourTeamId: string;
+  opponentName: string;
+  ourSide: OurSide;
+  /** @deprecated kept for old saves — prefer ourSide */
+  homeTeamId?: string;
+  awayTeamId?: string;
   competitionId?: string;
   label: string;
   onCourt: OnCourtPlayer[];
@@ -38,16 +42,18 @@ export type GameListItem = {
   id: string;
   status: string;
   scheduledAt: string | null;
-  homeTeamId: string;
-  awayTeamId: string;
-  homeName: string;
-  awayName: string;
+  ourTeamId: string;
+  ourTeamName: string;
+  opponentName: string;
+  ourSide: OurSide;
   label: string;
+  competitionId?: string;
 };
 
 const SESSION_KEY = "active_game_session";
 const GAMES_CACHE_KEY = "games_cache";
 const ROSTER_CACHE_KEY = "roster_cache";
+const GAME_ROSTER_CACHE_KEY = "game_roster_cache";
 
 export type CachedRoster = {
   teamId: string;
@@ -60,10 +66,37 @@ export type CachedRoster = {
   cachedAt: string;
 };
 
+export type CachedGameRoster = {
+  gameId: string;
+  players: Array<{
+    id: string;
+    name: string;
+    jerseyNumber: string;
+    teamId: string;
+    isStarter?: boolean;
+  }>;
+  cachedAt: string;
+};
+
+function inferOurSide(raw: ActiveGameSession): OurSide {
+  if (raw.ourSide === "HOME" || raw.ourSide === "AWAY") return raw.ourSide;
+  if (raw.homeTeamId && raw.ourTeamId && raw.homeTeamId === raw.ourTeamId) {
+    return "HOME";
+  }
+  if (raw.awayTeamId && raw.ourTeamId && raw.awayTeamId === raw.ourTeamId) {
+    return "AWAY";
+  }
+  return "HOME";
+}
+
 function normalizeSession(raw: ActiveGameSession): ActiveGameSession {
+  const ourTeamId = raw.ourTeamId ?? raw.homeTeamId ?? "";
+  const ourSide = inferOurSide({ ...raw, ourTeamId });
   return {
     ...raw,
-    ourTeamId: raw.ourTeamId ?? raw.homeTeamId,
+    ourTeamId,
+    ourSide,
+    opponentName: raw.opponentName || "คู่แข่ง",
     bench: (raw.bench ?? []).map(normalizePlayer),
     onCourt: (raw.onCourt ?? []).map(normalizePlayer),
     ourTeamFoulsPeriod: raw.ourTeamFoulsPeriod ?? 0,
@@ -110,7 +143,15 @@ export async function loadCachedGames(
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as { games?: GameListItem[] };
-    return parsed.games ?? [];
+    return (parsed.games ?? []).map((g) => ({
+      ...g,
+      ourTeamId: g.ourTeamId ?? (g as { homeTeamId?: string }).homeTeamId ?? "",
+      ourTeamName:
+        g.ourTeamName ?? (g as { homeName?: string }).homeName ?? "ทีมเรา",
+      opponentName:
+        g.opponentName ?? (g as { awayName?: string }).awayName ?? "คู่แข่ง",
+      ourSide: g.ourSide === "AWAY" ? "AWAY" : "HOME",
+    }));
   } catch {
     return [];
   }
@@ -147,6 +188,42 @@ export async function loadCachedRoster(
   try {
     const map = JSON.parse(raw) as Record<string, CachedRoster>;
     return map[teamId] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function cacheGameRoster(
+  store: LocalStore,
+  gameId: string,
+  players: CachedGameRoster["players"],
+): Promise<void> {
+  const raw = await store.getMeta(GAME_ROSTER_CACHE_KEY);
+  let map: Record<string, CachedGameRoster> = {};
+  if (raw) {
+    try {
+      map = JSON.parse(raw) as Record<string, CachedGameRoster>;
+    } catch {
+      map = {};
+    }
+  }
+  map[gameId] = {
+    gameId,
+    players,
+    cachedAt: new Date().toISOString(),
+  };
+  await store.setMeta(GAME_ROSTER_CACHE_KEY, JSON.stringify(map));
+}
+
+export async function loadCachedGameRoster(
+  store: LocalStore,
+  gameId: string,
+): Promise<CachedGameRoster | null> {
+  const raw = await store.getMeta(GAME_ROSTER_CACHE_KEY);
+  if (!raw) return null;
+  try {
+    const map = JSON.parse(raw) as Record<string, CachedGameRoster>;
+    return map[gameId] ?? null;
   } catch {
     return null;
   }
