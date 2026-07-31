@@ -20,7 +20,9 @@
   },
   "dependencies": {
     "@sp/rules-engine": "workspace:*",
-    "exceljs": "^4.4.0"
+    "exceljs": "^4.4.0",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

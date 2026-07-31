@@ -952,32 +952,37 @@ export function App() {
                   <li key={e.eventId}>{eventLabel(e, session)}</li>
                 ))}
             </ol>
-            <div className="row">
-              <button type="button" className="btn" onClick={() => void undo()}>
-                {th.undo}
-              </button>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => void exportExcel()}
-              >
-                {th.exportExcel}
-              </button>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => void exportPdf()}
-              >
-                {th.exportPdf}
-              </button>
+            <div className="export-actions">
+              <p className="export-label">รายงาน FIBA</p>
+              <div className="row">
+                <button
+                  type="button"
+                  className="btn accent"
+                  onClick={() => void exportExcel()}
+                >
+                  {th.exportExcel}
+                </button>
+                <button
+                  type="button"
+                  className="btn accent"
+                  onClick={() => void exportPdf()}
+                >
+                  {th.exportPdf}
+                </button>
+              </div>
+              <div className="row">
+                <button type="button" className="btn" onClick={() => void undo()}>
+                  {th.undo}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void backup()}
+                >
+                  {th.backup}
+                </button>
+              </div>
             </div>
-            <button
-              type="button"
-              className="btn block"
-              onClick={() => void backup()}
-            >
-              {th.backup}
-            </button>
           </div>
         </aside>
       </main>

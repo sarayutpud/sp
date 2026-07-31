@@ -1,9 +1,10 @@
 import { spuBanFixture } from "@sp/rules-engine";
 import { describe, expect, it } from "vitest";
 import { writeFibaBoxScoreXlsx } from "./fiba-excel";
+import { writeFibaBoxScorePdf } from "./fiba-pdf";
 
 describe("writeFibaBoxScoreXlsx", () => {
-  it("writes a non-empty workbook with both team names", async () => {
+  it("writes a non-empty workbook with match info and both teams", async () => {
     const buf = await writeFibaBoxScoreXlsx(spuBanFixture);
     expect(buf.byteLength).toBeGreaterThan(1000);
     const ExcelJS = await import("exceljs");
@@ -27,5 +28,18 @@ describe("writeFibaBoxScoreXlsx", () => {
     expect(blob).toContain("FIBA Box Score");
     expect(blob).toContain("Vaughn Donald Chester");
     expect(blob).toContain("Nyang Wek");
+    expect(blob).toContain("Tournament");
+    expect(blob).toContain("Game No.");
+    expect(blob).toContain("Final Score");
+    expect(blob).toContain("Field Goals");
+    expect(blob).toContain("M/A");
+  });
+});
+
+describe("writeFibaBoxScorePdf", () => {
+  it("writes a non-empty PDF blob", async () => {
+    const blob = await writeFibaBoxScorePdf(spuBanFixture);
+    expect(blob.size).toBeGreaterThan(500);
+    expect(blob.type).toContain("pdf");
   });
 });

@@ -271,7 +271,7 @@ export function ReportsPage() {
   const publicUrl = selectedGameId ? publicReportUrl(selectedGameId) : "";
 
   return (
-    <div className="page-block">
+    <div className="page-block reports-wide">
       <header className="page-head">
         <h1>รายงาน</h1>
         <p className="muted">ใบสถิติทั้งสองทีมและสรุปผลรายแมตช์</p>
@@ -432,7 +432,7 @@ export function ReportsPage() {
                   <p className="err">{(pbp.error as Error).message}</p>
                 )}
                 {tab === "box" && matchBox && (
-                  <section className="panel">
+                  <section className="panel box-score-panel">
                     <div className="export-bar">
                       <button
                         type="button"
@@ -445,7 +445,7 @@ export function ReportsPage() {
                           )
                         }
                       >
-                        Excel (ใกล้ฟอร์ม)
+                        Excel FIBA
                       </button>
                       <button
                         type="button"
@@ -458,7 +458,7 @@ export function ReportsPage() {
                           )
                         }
                       >
-                        PDF
+                        PDF FIBA
                       </button>
                       <button
                         type="button"
@@ -477,10 +477,6 @@ export function ReportsPage() {
                         CSV
                       </button>
                     </div>
-                    <p className="muted report-note">
-                      หน้าจออ่านง่าย · Excel จัดคอลัมน์แบบฟอร์ม FIBA (สองตารางทีม ·
-                      FG% · FD · +/- · EF)
-                    </p>
                     <MatchBoxView box={matchBox} />
                   </section>
                 )}

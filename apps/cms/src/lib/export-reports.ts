@@ -1,11 +1,8 @@
+import type { MatchBoxScore } from "@sp/rules-engine";
 import {
-  type MatchBoxScore,
-  fmtMadeAtt,
-  fmtPlusMinus,
-  fmtReb,
-  fmtShotPct,
-} from "@sp/rules-engine";
-import { writeFibaBoxScoreXlsx } from "@sp/report-export";
+  writeFibaBoxScorePdf,
+  writeFibaBoxScoreXlsx,
+} from "@sp/report-export";
 import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -19,70 +16,6 @@ function downloadBlob(blob: Blob, filename: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-const PLAYER_HEADERS = [
-  "#",
-  "Name",
-  "FG",
-  "%",
-  "2PT",
-  "3PT",
-  "FT",
-  "REB",
-  "AS",
-  "TO",
-  "ST",
-  "BS",
-  "PF",
-  "FD",
-  "+/-",
-  "EF",
-  "PTS",
-];
-
-function playerRows(box: MatchBoxScore, side: "home" | "away") {
-  const team = box[side];
-  return [
-    ...team.players.map((p) => [
-      p.no,
-      p.name,
-      fmtMadeAtt(p.fg),
-      fmtShotPct(p.fg),
-      fmtMadeAtt(p.fg2),
-      fmtMadeAtt(p.fg3),
-      fmtMadeAtt(p.ft),
-      fmtReb(p.reb),
-      p.ast,
-      p.to,
-      p.st,
-      p.blk,
-      p.pf,
-      p.fd,
-      fmtPlusMinus(p.plusMinus),
-      p.ef,
-      p.pts,
-    ]),
-    [
-      "",
-      "Totals",
-      fmtMadeAtt(team.teamTotals.fg),
-      fmtShotPct(team.teamTotals.fg),
-      fmtMadeAtt(team.teamTotals.fg2),
-      fmtMadeAtt(team.teamTotals.fg3),
-      fmtMadeAtt(team.teamTotals.ft),
-      fmtReb(team.teamTotals.reb),
-      team.teamTotals.ast,
-      team.teamTotals.to,
-      team.teamTotals.st,
-      team.teamTotals.blk,
-      team.teamTotals.pf,
-      team.teamTotals.fd,
-      "—",
-      "—",
-      team.teamTotals.pts,
-    ],
-  ];
 }
 
 export async function downloadMatchBoxExcel(
@@ -102,76 +35,8 @@ export async function downloadMatchBoxPdf(
   box: MatchBoxScore,
   filename: string,
 ) {
-  const doc = new jsPDF({ orientation: "landscape" });
-  doc.setFontSize(14);
-  doc.text("FIBA Box Score", 14, 14);
-  doc.setFontSize(11);
-  doc.text(
-    `${box.meta.homeCode} ${box.meta.finalHome} - ${box.meta.finalAway} ${box.meta.awayCode}`,
-    14,
-    22,
-  );
-  doc.setFontSize(9);
-  doc.text(`${box.meta.homeName} vs ${box.meta.awayName}`, 14, 28);
-  const staff = [
-    box.meta.homeCoach ? `HC ${box.meta.homeCoach}` : null,
-    box.meta.awayCoach ? `AC ${box.meta.awayCoach}` : null,
-    box.meta.crewChief ? `CC ${box.meta.crewChief}` : null,
-    box.meta.umpire ? `Ump ${box.meta.umpire}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  if (staff) doc.text(staff, 14, 33);
-
-  if (box.byQuarter.length > 0) {
-    autoTable(doc, {
-      startY: staff ? 36 : 32,
-      head: [
-        [
-          "Team",
-          ...box.byQuarter.map((q) => `Q${q.period}`),
-          "Final",
-        ],
-      ],
-      body: [
-        [
-          box.meta.homeCode,
-          ...box.byQuarter.map((q) => String(q.home)),
-          String(box.meta.finalHome),
-        ],
-        [
-          box.meta.awayCode,
-          ...box.byQuarter.map((q) => String(q.away)),
-          String(box.meta.finalAway),
-        ],
-      ],
-      styles: { fontSize: 8 },
-    });
-  }
-
-  let y =
-    (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
-      ?.finalY ?? 40;
-
-  for (const side of ["home", "away"] as const) {
-    doc.setFontSize(10);
-    const title = `${box[side].code} — ${box[side].name}${
-      box[side].coach ? ` · Coach ${box[side].coach}` : ""
-    }`;
-    doc.text(title, 14, y + 8);
-    autoTable(doc, {
-      startY: y + 10,
-      head: [PLAYER_HEADERS],
-      body: playerRows(box, side).map((r) => r.map(String)),
-      styles: { fontSize: 6.5 },
-      headStyles: { fillColor: [15, 22, 84], fontSize: 6.5 },
-    });
-    y =
-      (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
-        ?.finalY ?? y + 40;
-  }
-
-  downloadBlob(doc.output("blob"), filename);
+  const blob = await writeFibaBoxScorePdf(box);
+  downloadBlob(blob, filename);
 }
 
 export async function downloadZonesExcel(

@@ -3,8 +3,8 @@
 Local artifacts (gitignored):
 
 - `SP-Courtside.exe` — portable
-- `SP-Courtside-Setup-0.1.3.exe` — NSIS installer
-- `SP-Courtside-0.1.3.msi` — MSI (when produced)
+- `SP-Courtside-Setup-0.1.4.exe` — NSIS installer
+- `SP-Courtside-0.1.4.msi` — MSI (when produced)
 
 Build (from repo root):
 
