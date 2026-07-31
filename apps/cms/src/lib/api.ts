@@ -109,6 +109,16 @@ export async function fetchGames(): Promise<GameRow[]> {
   return (data ?? []) as GameRow[];
 }
 
+export async function fetchGame(id: string): Promise<GameRow | null> {
+  const { data, error } = await supabase
+    .from("games")
+    .select(GAME_SELECT)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as GameRow | null) ?? null;
+}
+
 export async function createGame(input: {
   competition_id: string;
   our_team_id: string;
@@ -181,9 +191,7 @@ export async function updateGame(
   const opponent = input.opponent_name.trim();
   if (!opponent) throw new Error("ใส่ชื่อคู่แข่ง");
   const ourTeamId = input.our_team_id;
-  const sides = ourTeamId
-    ? legacySides(ourTeamId, input.our_side)
-    : {};
+  const sides = ourTeamId ? legacySides(ourTeamId, input.our_side) : {};
   const { error } = await supabase
     .from("games")
     .update({

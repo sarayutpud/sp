@@ -712,6 +712,126 @@ textarea {
   margin-top: 0.75rem;
 }
 
+.public-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: stretch;
+  margin-top: 0.65rem;
+}
+
+.public-link-input {
+  flex: 1 1 220px;
+  min-width: 0;
+  font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+  font-size: 0.82rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--text);
+}
+
+.public-report {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(
+      circle at 10% -10%,
+      rgba(58, 69, 181, 0.14),
+      transparent 42%
+    ),
+    radial-gradient(circle at 96% 0%, rgba(255, 214, 0, 0.2), transparent 40%),
+    var(--bg);
+}
+
+.public-report-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
+  background: linear-gradient(90deg, var(--navy-deep), var(--navy));
+  color: #fff;
+  border-bottom: 3px solid var(--yellow);
+}
+
+.public-report-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.public-report-brand img {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 2px solid var(--yellow);
+  background: var(--yellow);
+}
+
+.public-report-brand strong {
+  display: block;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+
+.public-report-brand span {
+  display: block;
+  color: var(--yellow);
+  font-size: 0.78rem;
+}
+
+.public-report-top .btn.ghost {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.public-report-main {
+  width: min(960px, 100%);
+  margin: 0 auto;
+  padding: 1.25rem 1rem 2rem;
+  flex: 1;
+}
+
+.public-tabs {
+  margin: 0 0 1rem;
+}
+
+.public-report-foot {
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.85rem;
+}
+
+.report-capture-root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  background: #fff;
+  border-radius: var(--radius-sm);
+}
+
+.report-capture-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+}
+
+.report-capture-meta strong {
+  font-size: 1rem;
+}
+
+.report-capture-meta span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 @media (max-width: 720px) {
   .data-table th,
   .data-table td {

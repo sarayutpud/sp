@@ -5,6 +5,7 @@ import { GamesPage } from "./pages/GamesPage";
 import { GuidePage } from "./pages/GuidePage";
 import { LoginPage } from "./pages/LoginPage";
 import { PlayersPage } from "./pages/PlayersPage";
+import { PublicReportPage } from "./pages/PublicReportPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { RostersPage } from "./pages/RostersPage";
 
@@ -27,6 +28,7 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/share/:gameId" element={<PublicReportPage />} />
           <Route
             element={
               <RequireAuth>

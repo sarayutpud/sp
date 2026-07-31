@@ -1,11 +1,8 @@
 import { ShotChartView } from "@sp/ui";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { fetchGames, fetchPbp, fetchPlayers, fetchTeams } from "../lib/api";
-import {
-  gameMatchLabel,
-} from "../lib/types";
 import {
   buildCoachInsights,
   buildCoachPlayerLines,
@@ -17,9 +14,10 @@ import {
 import { analyzeEventCoverage } from "../lib/coverage";
 import {
   buildMatchShareCsv,
-  buildMatchShareText,
+  copyText,
+  downloadElementPng,
   downloadTextFile,
-  shareOrDownloadText,
+  publicReportUrl,
 } from "../lib/share-report";
 import {
   buildFullBoxScore,
@@ -28,6 +26,7 @@ import {
   shotDistanceSplit,
   sumBoxLines,
 } from "../lib/stats-reports";
+import { gameMatchLabel } from "../lib/types";
 import { SeasonReportPage } from "./SeasonReportPage";
 
 type ReportTab = "insights" | "box" | "advanced" | "shotchart" | "zones";
@@ -55,6 +54,8 @@ export function ReportsPage() {
   const [teamFilter, setTeamFilter] = useState<string>("");
   const [tab, setTab] = useState<ReportTab>("insights");
   const [shareMsg, setShareMsg] = useState("");
+  const [exportingImage, setExportingImage] = useState(false);
+  const reportCaptureRef = useRef<HTMLDivElement>(null);
 
   const setScope = (next: ReportScope) => {
     if (next === "season") setSearchParams({ scope: "season" });
@@ -116,7 +117,7 @@ export function ReportsPage() {
   const advanced = useMemo(() => {
     if (!pbp.data || !activeTeamId || !oppTeamId) return null;
     return buildTeamAdvanced(pbp.data, activeTeamId, oppTeamId);
-  }, [pbp.data, activeTeamId, oppTeamId]);
+  }, [pbp.data, activeTeamId]);
 
   const teamZones = useMemo(() => {
     if (!pbp.data) return [];
@@ -189,18 +190,23 @@ export function ReportsPage() {
     [pbp.data, activeTeamId],
   );
 
-  const exportShare = async () => {
-    if (!sharePayload || !selectedGameId) return;
-    const text = buildMatchShareText(sharePayload);
+  const exportReportImage = async () => {
+    if (!selectedGameId || !reportCaptureRef.current) return;
     const short = selectedGameId.slice(0, 8);
-    const result = await shareOrDownloadText(
-      `รายงาน ${sharePayload.matchLabel}`,
-      text,
-      `sp-report-${short}.txt`,
-    );
-    setShareMsg(
-      result === "shared" ? "แชร์แล้ว" : `ดาวน์โหลด sp-report-${short}.txt แล้ว`,
-    );
+    const tabSlug = tab;
+    setExportingImage(true);
+    setShareMsg("");
+    try {
+      await downloadElementPng(
+        reportCaptureRef.current,
+        `sp-report-${short}-${tabSlug}.png`,
+      );
+      setShareMsg(`ดาวน์โหลด sp-report-${short}-${tabSlug}.png แล้ว`);
+    } catch (err) {
+      setShareMsg(err instanceof Error ? err.message : "ดาวน์โหลดรูปไม่สำเร็จ");
+    } finally {
+      setExportingImage(false);
+    }
   };
 
   const exportCsv = () => {
@@ -214,13 +220,19 @@ export function ReportsPage() {
     setShareMsg(`ดาวน์โหลด sp-report-${short}.csv แล้ว`);
   };
 
+  const publicUrl = selectedGameId ? publicReportUrl(selectedGameId) : "";
+
+  const copyPublicLink = async () => {
+    if (!publicUrl) return;
+    const ok = await copyText(publicUrl);
+    setShareMsg(ok ? "คัดลอกลิงก์สาธารณะแล้ว" : "คัดลอกไม่สำเร็จ — คัดลอกจากช่องลิงก์เอง");
+  };
+
   return (
     <div className="page-block">
       <header className="page-head">
         <h1>รายงาน</h1>
-        <p className="muted">
-          สถิติทีมเรา — แมตช์เดี่ยวหรือรวมฤดูกาล (ไม่รวมรายคนคู่แข่ง)
-        </p>
+        <p className="muted">สถิติทีมเรา — แมตช์เดี่ยวหรือรวมฤดูกาล (ไม่รวมรายคนคู่แข่ง)</p>
       </header>
 
       <div className="scope-tabs" role="tablist" aria-label="ประเภทรายงาน">
@@ -248,520 +260,580 @@ export function ReportsPage() {
         <SeasonReportPage embedded />
       ) : (
         <>
-      <section className="panel">
-        <h2>เลือกแมตช์ (10 นัดล่าสุด)</h2>
-        <p className="muted report-note">
-          สร้างแมตช์ใหม่ได้ที่เมนูแมตช์ — แล้วบันทึกจาก Courtside แล้วซิงก์
-        </p>
-        {games.isLoading && <p>โหลด…</p>}
-        {games.isError && (
-          <p className="err">{(games.error as Error).message}</p>
-        )}
-        {!games.isLoading && recentGames.length === 0 && (
-          <div className="empty-state">
-            <h3>ยังไม่มีแมตช์</h3>
-            <ol className="empty-steps">
-              <li>สร้างแมตช์ในเมนูแมตช์</li>
-              <li>เปิด Courtside บันทึกสถิติทีมเรา</li>
-              <li>กดซิงก์ แล้วกลับมาเลือกรายงาน</li>
-            </ol>
-            <Link to="/games" className="btn primary">
-              ไปสร้างแมตช์
-            </Link>
-          </div>
-        )}
-        {recentGames.length > 0 && (
-        <div className="table-scroll">
-          <table className="data-table wrap-cells">
-            <thead>
-              <tr>
-                <th>แมตช์</th>
-                <th>สถานะ</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {recentGames.map((g) => (
-                <tr
-                  key={g.id}
-                  className={selectedGameId === g.id ? "selected" : ""}
-                >
-                  <td className="cell-stack">
-                    <span className="cell-primary">
-                      {gameMatchLabel(
-                        teamMap.get(g.our_team_id) ?? "?",
-                        g.opponent_name,
-                        g.our_side,
-                      )}
-                    </span>
-                    <span className="cell-muted">
-                      <span className="side-chip">
-                        {g.our_side === "HOME" ? "เราเป็นเหย้า" : "เราเป็นเยือน"}
-                      </span>
-                      {" · "}
-                      {g.scheduled_at
-                        ? new Date(g.scheduled_at).toLocaleString("th-TH")
-                        : "—"}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`badge status-${g.status}`}>
-                      {g.status}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn tiny primary"
-                      onClick={() => {
-                        setSelectedGameId(g.id);
-                        setTeamFilter(g.our_team_id);
-                        setTab("insights");
-                        setShareMsg("");
-                      }}
-                    >
-                      ดูรายงาน
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        )}
-      </section>
-
-      {selectedGame && (
-        <>
-          <div className="report-toolbar">
-            <span className="muted">
-              วิเคราะห์ทีม: <strong>{teamMap.get(activeTeamId) ?? "ทีมเรา"}</strong>
-            </span>
-            <div className="report-tabs">
-              {TABS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={tab === t.id ? "tab active" : "tab"}
-                  onClick={() => setTab(t.id)}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {hasEvents && coverage.missingLabels.length > 0 && (
-            <div className="banner warn">
-              ข้อมูลยังไม่ครบสำหรับวิเคราะห์เต็มรูปแบบ — ยังไม่มี:{" "}
-              {coverage.missingLabels.join(", ")}
-              {!coverage.hasReb || !coverage.hasTo
-                ? " · OffRtg/possessions อาจคลาดเคลื่อน"
-                : ""}
-            </div>
-          )}
-
-          {hasEvents && (
-            <section className="panel">
-              <h2>แชร์รายงานนัดนี้</h2>
-              <p className="muted report-note">
-                ส่งสรุปข้อความหรือไฟล์ CSV ของ {matchLabel} —{" "}
-                {teamMap.get(activeTeamId)}
-              </p>
-              <div className="report-export-row">
-                <button
-                  type="button"
-                  className="btn primary"
-                  onClick={() => void exportShare()}
-                >
-                  แชร์ / ดาวน์โหลดข้อความ
-                </button>
-                <button type="button" className="btn" onClick={exportCsv}>
-                  ดาวน์โหลด CSV
-                </button>
-                {shareMsg && <span className="muted">{shareMsg}</span>}
-              </div>
-            </section>
-          )}
-
-          {pbp.isLoading && <p className="muted">โหลดสถิติ…</p>}
-          {pbp.isError && <p className="err">{(pbp.error as Error).message}</p>}
-
-          {!pbp.isLoading && !hasEvents && (
-            <section className="panel">
+          <section className="panel">
+            <h2>เลือกแมตช์ (10 นัดล่าสุด)</h2>
+            <p className="muted report-note">
+              สร้างแมตช์ใหม่ได้ที่เมนูแมตช์ — แล้วบันทึกจาก Courtside แล้วซิงก์
+            </p>
+            {games.isLoading && <p>โหลด…</p>}
+            {games.isError && (
+              <p className="err">{(games.error as Error).message}</p>
+            )}
+            {!games.isLoading && recentGames.length === 0 && (
               <div className="empty-state">
-                <h3>ยังไม่มีข้อมูลในแมตช์นี้</h3>
+                <h3>ยังไม่มีแมตช์</h3>
                 <ol className="empty-steps">
-                  <li>เปิด Courtside เลือกแมตช์นี้</li>
-                  <li>บันทึกช็อตและเหตุการณ์ทีมเรา</li>
-                  <li>กดซิงก์ แล้วรีเฟรชรายงาน</li>
+                  <li>สร้างแมตช์ในเมนูแมตช์</li>
+                  <li>เปิด Courtside บันทึกสถิติทีมเรา</li>
+                  <li>กดซิงก์ แล้วกลับมาเลือกรายงาน</li>
                 </ol>
+                <Link to="/games" className="btn primary">
+                  ไปสร้างแมตช์
+                </Link>
               </div>
-            </section>
-          )}
-
-          {hasEvents && tab === "insights" && (
-            <section className="panel">
-              <h2>คำแนะนำโค้ช — {teamMap.get(activeTeamId)}</h2>
-              <p className="muted report-note">
-                สรุปอัตโนมัติจากสถิติแมตช์ — ใช้ประกอบการวิเคราะห์ ไม่แทนที่การดูเกม
-              </p>
-              {insights.length === 0 && (
-                <p className="muted">ยังไม่มีข้อมูลชู้ตพอสำหรับคำแนะนำ</p>
-              )}
-              <ul className="insight-list">
-                {insights.map((item, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: insights are ordered text
-                  <li key={i} className={`insight insight-${item.level}`}>
-                    {item.text}
-                  </li>
-                ))}
-              </ul>
-              {teamTotals && (
-                <div className="stat-cards">
-                  <div className="stat-card">
-                    <span className="stat-label">คะแนน</span>
-                    <strong>{teamTotals.pts}</strong>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-label">eFG%</span>
-                    <strong>{fmtPct(teamTotals.efg)}</strong>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-label">TS%</span>
-                    <strong>{fmtPct(teamTotals.ts)}</strong>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-label">แต้ม/ช็อต</span>
-                    <strong>{teamTotals.ppp?.toFixed(2) ?? "—"}</strong>
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
-
-          {hasEvents && tab === "box" && (
-            <section className="panel">
-              <h2>สถิติพื้นฐาน (Box Score) — {teamMap.get(activeTeamId)}</h2>
-              <p className="muted report-note">
-                PTS คะแนน · REB รีบาวด์ · AST แอสซิสต์ · STL สตีล · BLK บล็อก · TO
-                เทิร์นโอเวอร์ · PF ฟาวล์
-              </p>
-              <div className="table-scroll">
-                <table className="data-table wrap-cells sticky-name mobile-priority">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>ผู้เล่น</th>
-                      <th>PTS</th>
-                      <th>REB</th>
-                      <th className="hide-sm">AST</th>
-                      <th className="hide-sm">STL</th>
-                      <th className="hide-sm">BLK</th>
-                      <th className="hide-sm">TO</th>
-                      <th className="hide-sm">PF</th>
-                      <th>FG</th>
-                      <th className="hide-sm">3PT</th>
-                      <th className="hide-sm">FT</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {fullBox.map((l) => (
-                      <tr key={l.playerId}>
-                        <td>{l.jersey}</td>
-                        <td>{l.playerName}</td>
-                        <td>
-                          <strong>{l.pts}</strong>
-                        </td>
-                        <td>{l.reb}</td>
-                        <td className="hide-sm">{l.ast}</td>
-                        <td className="hide-sm">{l.stl}</td>
-                        <td className="hide-sm">{l.blk}</td>
-                        <td className="hide-sm">{l.tov}</td>
-                        <td className="hide-sm">{l.pf}</td>
-                        <td>
-                          {l.fgm}/{l.fga}
-                        </td>
-                        <td className="hide-sm">
-                          {l.tpm}/{l.tpa}
-                        </td>
-                        <td className="hide-sm">
-                          {l.ftm}/{l.fta}
-                        </td>
-                      </tr>
-                    ))}
-                    {boxTotals && (
-                      <tr className="total-row">
-                        <td colSpan={2}>
-                          <strong>รวมทีม</strong>
-                        </td>
-                        <td>
-                          <strong>{boxTotals.pts}</strong>
-                        </td>
-                        <td>{boxTotals.reb}</td>
-                        <td className="hide-sm">{boxTotals.ast}</td>
-                        <td className="hide-sm">{boxTotals.stl}</td>
-                        <td className="hide-sm">{boxTotals.blk}</td>
-                        <td className="hide-sm">{boxTotals.tov}</td>
-                        <td className="hide-sm">{boxTotals.pf}</td>
-                        <td>
-                          {boxTotals.fgm}/{boxTotals.fga}
-                        </td>
-                        <td className="hide-sm">
-                          {boxTotals.tpm}/{boxTotals.tpa}
-                        </td>
-                        <td className="hide-sm">
-                          {boxTotals.ftm}/{boxTotals.fta}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              {fullBox.every(
-                (l) => l.reb + l.ast + l.stl + l.blk + l.tov === 0,
-              ) && (
-                <p className="muted report-note">
-                  * REB/AST/STL/BLK/TO จะแสดงเมื่อ Courtside บันทึกอีเวนต์เหล่านี้
-                  (ปัจจุบันบันทึกการยิงเป็นหลัก)
-                </p>
-              )}
-            </section>
-          )}
-
-          {hasEvents && tab === "advanced" && (
-            <section className="panel">
-              <h2>สถิติขั้นสูง — {teamMap.get(activeTeamId)}</h2>
-              <p className="muted report-note">
-                Rating = แต้มต่อการครองบอล 100 ครั้ง · Pace = จำนวนการครองบอลต่อเกม ·
-                eFG% ถ่วงน้ำหนักลูก 3 แต้ม
-              </p>
-              {!advanced && (
-                <div className="banner info">
-                  สถิติขั้นสูงบางตัวต้องการข้อมูลคู่แข่ง — โหมดทีมเรายังไม่บันทึกคู่แข่ง
-                </div>
-              )}
-              {advanced && (
-                <div className="stat-cards">
-                  <div className="stat-card">
-                    <span className="stat-label">Off Rating</span>
-                    <strong>{fmtRating(advanced.offRtg)}</strong>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-label">Def Rating</span>
-                    <strong>{fmtRating(advanced.defRtg)}</strong>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-label">Net Rating</span>
-                    <strong
-                      className={
-                        advanced.netRtg === null
-                          ? ""
-                          : advanced.netRtg >= 0
-                            ? "pct-good"
-                            : "pct-warn"
-                      }
-                    >
-                      {advanced.netRtg === null
-                        ? "—"
-                        : `${advanced.netRtg >= 0 ? "+" : ""}${advanced.netRtg.toFixed(1)}`}
-                    </strong>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-label">Pace</span>
-                    <strong>{fmtRating(advanced.pace)}</strong>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-label">eFG%</span>
-                    <strong>{fmtPct(advanced.efg)}</strong>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-label">TOV%</span>
-                    <strong>{fmtPct(advanced.tovPct)}</strong>
-                  </div>
-                </div>
-              )}
-
-              <h2 style={{ marginTop: "1.1rem" }}>ประสิทธิภาพรายผู้เล่น</h2>
+            )}
+            {recentGames.length > 0 && (
               <div className="table-scroll">
                 <table className="data-table wrap-cells">
                   <thead>
                     <tr>
-                      <th>ผู้เล่น</th>
-                      <th>FG%</th>
-                      <th>2P%</th>
-                      <th>3P%</th>
-                      <th>eFG%</th>
-                      <th>TS%</th>
-                      <th>PPP</th>
+                      <th>แมตช์</th>
+                      <th>สถานะ</th>
+                      <th />
                     </tr>
                   </thead>
                   <tbody>
-                    {playerLines.map((line) => (
-                      <tr key={line.playerId}>
+                    {recentGames.map((g) => (
+                      <tr
+                        key={g.id}
+                        className={selectedGameId === g.id ? "selected" : ""}
+                      >
                         <td className="cell-stack">
                           <span className="cell-primary">
-                            {line.playerName}
+                            {gameMatchLabel(
+                              teamMap.get(g.our_team_id) ?? "?",
+                              g.opponent_name,
+                              g.our_side,
+                            )}
                           </span>
-                          <span className="cell-muted">#{line.jersey}</span>
+                          <span className="cell-muted">
+                            <span className="side-chip">
+                              {g.our_side === "HOME"
+                                ? "เราเป็นเหย้า"
+                                : "เราเป็นเยือน"}
+                            </span>
+                            {" · "}
+                            {g.scheduled_at
+                              ? new Date(g.scheduled_at).toLocaleString("th-TH")
+                              : "—"}
+                          </span>
                         </td>
-                        <td className={pctClass(line.fgPct, 0.45)}>
-                          {fmtPct(line.fgPct)}
+                        <td>
+                          <span className={`badge status-${g.status}`}>
+                            {g.status}
+                          </span>
                         </td>
-                        <td>{fmtPct(line.twoPct)}</td>
-                        <td>{fmtPct(line.threePct)}</td>
-                        <td className={pctClass(line.efg, 0.5)}>
-                          {fmtPct(line.efg)}
+                        <td>
+                          <button
+                            type="button"
+                            className="btn tiny primary"
+                            onClick={() => {
+                              setSelectedGameId(g.id);
+                              setTeamFilter(g.our_team_id);
+                              setTab("insights");
+                              setShareMsg("");
+                            }}
+                          >
+                            ดูรายงาน
+                          </button>
                         </td>
-                        <td className={pctClass(line.ts, 0.55)}>
-                          {fmtPct(line.ts)}
-                        </td>
-                        <td>{line.ppp?.toFixed(2) ?? "—"}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </section>
-          )}
+            )}
+          </section>
 
-          {hasEvents && tab === "shotchart" && (
-            <section className="panel">
-              <h2>แผนภาพการยิง (Shot Chart) — {teamMap.get(activeTeamId)}</h2>
-              <p className="muted report-note">
-                จุดเขียว = ยิงเข้า · กากบาทแดง = ยิงพลาด · โซนเขียว = ถนัด (Hot) ·
-                โซนแดง = ไม่ถนัด (Cold)
-              </p>
-              {!hasShots && <p className="muted">ยังไม่มีพิกัดการยิงในแมตช์นี้</p>}
-              {hasShots && (
-                <div className="shotchart-wrap">
-                  <ShotChartView shots={shotMarkers} zones={zoneShades} />
-                  <div className="shotchart-side">
-                    <div className="stat-cards">
-                      <div className="stat-card">
-                        <span className="stat-label">ยิงทั้งหมด</span>
-                        <strong>{shotMarkers.length}</strong>
-                      </div>
-                      <div className="stat-card">
-                        <span className="stat-label">เข้า</span>
-                        <strong className="pct-good">{madeShots}</strong>
-                      </div>
-                      <div className="stat-card">
-                        <span className="stat-label">FG%</span>
-                        <strong>
-                          {fmtPct(
-                            shotMarkers.length > 0
-                              ? madeShots / shotMarkers.length
-                              : null,
-                          )}
-                        </strong>
-                      </div>
+          {selectedGame && (
+            <>
+              <div className="report-toolbar">
+                <span className="muted">
+                  วิเคราะห์ทีม:{" "}
+                  <strong>{teamMap.get(activeTeamId) ?? "ทีมเรา"}</strong>
+                </span>
+                <div className="report-tabs">
+                  {TABS.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={tab === t.id ? "tab active" : "tab"}
+                      onClick={() => setTab(t.id)}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {hasEvents && coverage.missingLabels.length > 0 && (
+                <div className="banner warn">
+                  ข้อมูลยังไม่ครบสำหรับวิเคราะห์เต็มรูปแบบ — ยังไม่มี:{" "}
+                  {coverage.missingLabels.join(", ")}
+                  {!coverage.hasReb || !coverage.hasTo
+                    ? " · OffRtg/possessions อาจคลาดเคลื่อน"
+                    : ""}
+                </div>
+              )}
+
+              {selectedGame && (
+                <section className="panel">
+                  <h2>แชร์รายงานนัดนี้</h2>
+                  <p className="muted report-note">
+                    ส่งลิงก์สาธารณะให้คนอื่นดูผลได้โดยไม่ต้องล็อกอิน — หรือดาวน์โหลดรูป/CSV ของ{" "}
+                    {matchLabel}
+                    {teamMap.get(activeTeamId)
+                      ? ` — ${teamMap.get(activeTeamId)}`
+                      : ""}
+                  </p>
+                  <div className="public-link-row">
+                    <input
+                      className="public-link-input"
+                      readOnly
+                      value={publicUrl}
+                      aria-label="ลิงก์สาธารณะ"
+                      onFocus={(e) => e.currentTarget.select()}
+                    />
+                    <button
+                      type="button"
+                      className="btn primary"
+                      onClick={() => void copyPublicLink()}
+                    >
+                      คัดลอกลิงก์
+                    </button>
+                    <a
+                      className="btn"
+                      href={publicUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      เปิดดู
+                    </a>
+                  </div>
+                  <div className="report-export-row">
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={exportingImage || !hasEvents}
+                      onClick={() => void exportReportImage()}
+                    >
+                      {exportingImage ? "กำลังสร้างรูป…" : "ดาวน์โหลดรูปรายงาน"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={!hasEvents}
+                      onClick={exportCsv}
+                    >
+                      ดาวน์โหลด CSV
+                    </button>
+                    {shareMsg && <span className="muted">{shareMsg}</span>}
+                  </div>
+                </section>
+              )}
+
+              <div ref={reportCaptureRef} className="report-capture-root">
+                {hasEvents && (
+                  <div className="report-capture-meta">
+                    <strong>SP FITNESS — {matchLabel}</strong>
+                    <span>
+                      {teamMap.get(activeTeamId)} ·{" "}
+                      {TABS.find((t) => t.id === tab)?.label}
+                      {selectedGame?.scheduled_at
+                        ? ` · ${new Date(selectedGame.scheduled_at).toLocaleString("th-TH")}`
+                        : ""}
+                    </span>
+                  </div>
+                )}
+
+                {pbp.isLoading && <p className="muted">โหลดสถิติ…</p>}
+                {pbp.isError && (
+                  <p className="err">{(pbp.error as Error).message}</p>
+                )}
+
+                {!pbp.isLoading && !hasEvents && (
+                  <section className="panel">
+                    <div className="empty-state">
+                      <h3>ยังไม่มีข้อมูลในแมตช์นี้</h3>
+                      <ol className="empty-steps">
+                        <li>เปิด Courtside เลือกแมตช์นี้</li>
+                        <li>บันทึกช็อตและเหตุการณ์ทีมเรา</li>
+                        <li>กดซิงก์ แล้วรีเฟรชรายงาน</li>
+                      </ol>
                     </div>
-                    <ul className="zone-legend">
-                      {teamZones.map((z) => (
-                        <li key={z.zone}>
-                          <span
-                            className={`legend-dot ${
-                              z.pct === null
-                                ? ""
-                                : z.pct >= 0.5
-                                  ? "hot"
-                                  : z.pct < 0.35
-                                    ? "cold"
-                                    : "warm"
-                            }`}
-                          />
-                          {z.label}: {fmtPct(z.pct)} ({z.fgm}/{z.fga})
+                  </section>
+                )}
+
+                {hasEvents && tab === "insights" && (
+                  <section className="panel">
+                    <h2>คำแนะนำโค้ช — {teamMap.get(activeTeamId)}</h2>
+                    <p className="muted report-note">
+                      สรุปอัตโนมัติจากสถิติแมตช์ — ใช้ประกอบการวิเคราะห์ ไม่แทนที่การดูเกม
+                    </p>
+                    {insights.length === 0 && (
+                      <p className="muted">ยังไม่มีข้อมูลชู้ตพอสำหรับคำแนะนำ</p>
+                    )}
+                    <ul className="insight-list">
+                      {insights.map((item, i) => (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: insights are ordered text
+                        <li key={i} className={`insight insight-${item.level}`}>
+                          {item.text}
                         </li>
                       ))}
                     </ul>
-                    <p className="muted">
-                      ใต้แป้น {distanceSplit.near} · ระยะไกล {distanceSplit.far}
+                    {teamTotals && (
+                      <div className="stat-cards">
+                        <div className="stat-card">
+                          <span className="stat-label">คะแนน</span>
+                          <strong>{teamTotals.pts}</strong>
+                        </div>
+                        <div className="stat-card">
+                          <span className="stat-label">eFG%</span>
+                          <strong>{fmtPct(teamTotals.efg)}</strong>
+                        </div>
+                        <div className="stat-card">
+                          <span className="stat-label">TS%</span>
+                          <strong>{fmtPct(teamTotals.ts)}</strong>
+                        </div>
+                        <div className="stat-card">
+                          <span className="stat-label">แต้ม/ช็อต</span>
+                          <strong>{teamTotals.ppp?.toFixed(2) ?? "—"}</strong>
+                        </div>
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                {hasEvents && tab === "box" && (
+                  <section className="panel">
+                    <h2>สถิติพื้นฐาน (Box Score) — {teamMap.get(activeTeamId)}</h2>
+                    <p className="muted report-note">
+                      PTS คะแนน · REB รีบาวด์ · AST แอสซิสต์ · STL สตีล · BLK บล็อก ·
+                      TO เทิร์นโอเวอร์ · PF ฟาวล์
                     </p>
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
-
-          {hasEvents && tab === "zones" && (
-            <>
-              <section className="panel">
-                <h2>โซนการยิง — ทีมรวม</h2>
-                <div className="table-scroll">
-                  <table className="data-table wrap-cells">
-                    <thead>
-                      <tr>
-                        <th>โซน</th>
-                        <th>FGM</th>
-                        <th>FGA</th>
-                        <th>FG%</th>
-                        <th>สัดส่วน</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {teamZones.map((z) => {
-                        const totalFga = teamZones.reduce(
-                          (s, x) => s + x.fga,
-                          0,
-                        );
-                        return (
-                          <tr key={z.zone}>
-                            <td>{z.label}</td>
-                            <td>{z.fgm}</td>
-                            <td>{z.fga}</td>
-                            <td className={pctClass(z.pct, 0.45)}>
-                              {fmtPct(z.pct)}
-                            </td>
-                            <td>
-                              {totalFga > 0 ? fmtPct(z.fga / totalFga) : "—"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-
-              <section className="panel">
-                <h2>โซนการยิง — รายผู้เล่น</h2>
-                <div className="zone-grid">
-                  {playerZones.map((row) => (
-                    <div key={row.playerId} className="zone-card">
-                      <h3>
-                        {row.jersey} {row.playerName}
-                      </h3>
-                      <table className="data-table compact wrap-cells">
+                    <div className="table-scroll">
+                      <table className="data-table wrap-cells sticky-name mobile-priority">
                         <thead>
                           <tr>
-                            <th>โซน</th>
+                            <th>#</th>
+                            <th>ผู้เล่น</th>
+                            <th>PTS</th>
+                            <th>REB</th>
+                            <th className="hide-sm">AST</th>
+                            <th className="hide-sm">STL</th>
+                            <th className="hide-sm">BLK</th>
+                            <th className="hide-sm">TO</th>
+                            <th className="hide-sm">PF</th>
                             <th>FG</th>
-                            <th>%</th>
+                            <th className="hide-sm">3PT</th>
+                            <th className="hide-sm">FT</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {row.zones
-                            .filter((z) => z.fga > 0)
-                            .map((z) => (
-                              <tr key={z.zone}>
-                                <td>{z.label}</td>
-                                <td>
-                                  {z.fgm}/{z.fga}
-                                </td>
-                                <td>{fmtPct(z.pct)}</td>
-                              </tr>
-                            ))}
+                          {fullBox.map((l) => (
+                            <tr key={l.playerId}>
+                              <td>{l.jersey}</td>
+                              <td>{l.playerName}</td>
+                              <td>
+                                <strong>{l.pts}</strong>
+                              </td>
+                              <td>{l.reb}</td>
+                              <td className="hide-sm">{l.ast}</td>
+                              <td className="hide-sm">{l.stl}</td>
+                              <td className="hide-sm">{l.blk}</td>
+                              <td className="hide-sm">{l.tov}</td>
+                              <td className="hide-sm">{l.pf}</td>
+                              <td>
+                                {l.fgm}/{l.fga}
+                              </td>
+                              <td className="hide-sm">
+                                {l.tpm}/{l.tpa}
+                              </td>
+                              <td className="hide-sm">
+                                {l.ftm}/{l.fta}
+                              </td>
+                            </tr>
+                          ))}
+                          {boxTotals && (
+                            <tr className="total-row">
+                              <td colSpan={2}>
+                                <strong>รวมทีม</strong>
+                              </td>
+                              <td>
+                                <strong>{boxTotals.pts}</strong>
+                              </td>
+                              <td>{boxTotals.reb}</td>
+                              <td className="hide-sm">{boxTotals.ast}</td>
+                              <td className="hide-sm">{boxTotals.stl}</td>
+                              <td className="hide-sm">{boxTotals.blk}</td>
+                              <td className="hide-sm">{boxTotals.tov}</td>
+                              <td className="hide-sm">{boxTotals.pf}</td>
+                              <td>
+                                {boxTotals.fgm}/{boxTotals.fga}
+                              </td>
+                              <td className="hide-sm">
+                                {boxTotals.tpm}/{boxTotals.tpa}
+                              </td>
+                              <td className="hide-sm">
+                                {boxTotals.ftm}/{boxTotals.fta}
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
-                  ))}
-                </div>
-              </section>
+                    {fullBox.every(
+                      (l) => l.reb + l.ast + l.stl + l.blk + l.tov === 0,
+                    ) && (
+                      <p className="muted report-note">
+                        * REB/AST/STL/BLK/TO จะแสดงเมื่อ Courtside บันทึกอีเวนต์เหล่านี้
+                        (ปัจจุบันบันทึกการยิงเป็นหลัก)
+                      </p>
+                    )}
+                  </section>
+                )}
+
+                {hasEvents && tab === "advanced" && (
+                  <section className="panel">
+                    <h2>สถิติขั้นสูง — {teamMap.get(activeTeamId)}</h2>
+                    <p className="muted report-note">
+                      Rating = แต้มต่อการครองบอล 100 ครั้ง · Pace =
+                      จำนวนการครองบอลต่อเกม · eFG% ถ่วงน้ำหนักลูก 3 แต้ม
+                    </p>
+                    {!advanced && (
+                      <div className="banner info">
+                        สถิติขั้นสูงบางตัวต้องการข้อมูลคู่แข่ง — โหมดทีมเรายังไม่บันทึกคู่แข่ง
+                      </div>
+                    )}
+                    {advanced && (
+                      <div className="stat-cards">
+                        <div className="stat-card">
+                          <span className="stat-label">Off Rating</span>
+                          <strong>{fmtRating(advanced.offRtg)}</strong>
+                        </div>
+                        <div className="stat-card">
+                          <span className="stat-label">Def Rating</span>
+                          <strong>{fmtRating(advanced.defRtg)}</strong>
+                        </div>
+                        <div className="stat-card">
+                          <span className="stat-label">Net Rating</span>
+                          <strong
+                            className={
+                              advanced.netRtg === null
+                                ? ""
+                                : advanced.netRtg >= 0
+                                  ? "pct-good"
+                                  : "pct-warn"
+                            }
+                          >
+                            {advanced.netRtg === null
+                              ? "—"
+                              : `${advanced.netRtg >= 0 ? "+" : ""}${advanced.netRtg.toFixed(1)}`}
+                          </strong>
+                        </div>
+                        <div className="stat-card">
+                          <span className="stat-label">Pace</span>
+                          <strong>{fmtRating(advanced.pace)}</strong>
+                        </div>
+                        <div className="stat-card">
+                          <span className="stat-label">eFG%</span>
+                          <strong>{fmtPct(advanced.efg)}</strong>
+                        </div>
+                        <div className="stat-card">
+                          <span className="stat-label">TOV%</span>
+                          <strong>{fmtPct(advanced.tovPct)}</strong>
+                        </div>
+                      </div>
+                    )}
+
+                    <h2 style={{ marginTop: "1.1rem" }}>ประสิทธิภาพรายผู้เล่น</h2>
+                    <div className="table-scroll">
+                      <table className="data-table wrap-cells">
+                        <thead>
+                          <tr>
+                            <th>ผู้เล่น</th>
+                            <th>FG%</th>
+                            <th>2P%</th>
+                            <th>3P%</th>
+                            <th>eFG%</th>
+                            <th>TS%</th>
+                            <th>PPP</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {playerLines.map((line) => (
+                            <tr key={line.playerId}>
+                              <td className="cell-stack">
+                                <span className="cell-primary">
+                                  {line.playerName}
+                                </span>
+                                <span className="cell-muted">
+                                  #{line.jersey}
+                                </span>
+                              </td>
+                              <td className={pctClass(line.fgPct, 0.45)}>
+                                {fmtPct(line.fgPct)}
+                              </td>
+                              <td>{fmtPct(line.twoPct)}</td>
+                              <td>{fmtPct(line.threePct)}</td>
+                              <td className={pctClass(line.efg, 0.5)}>
+                                {fmtPct(line.efg)}
+                              </td>
+                              <td className={pctClass(line.ts, 0.55)}>
+                                {fmtPct(line.ts)}
+                              </td>
+                              <td>{line.ppp?.toFixed(2) ?? "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                )}
+
+                {hasEvents && tab === "shotchart" && (
+                  <section className="panel">
+                    <h2>
+                      แผนภาพการยิง (Shot Chart) — {teamMap.get(activeTeamId)}
+                    </h2>
+                    <p className="muted report-note">
+                      จุดเขียว = ยิงเข้า · กากบาทแดง = ยิงพลาด · โซนเขียว = ถนัด (Hot)
+                      · โซนแดง = ไม่ถนัด (Cold)
+                    </p>
+                    {!hasShots && <p className="muted">ยังไม่มีพิกัดการยิงในแมตช์นี้</p>}
+                    {hasShots && (
+                      <div className="shotchart-wrap">
+                        <ShotChartView shots={shotMarkers} zones={zoneShades} />
+                        <div className="shotchart-side">
+                          <div className="stat-cards">
+                            <div className="stat-card">
+                              <span className="stat-label">ยิงทั้งหมด</span>
+                              <strong>{shotMarkers.length}</strong>
+                            </div>
+                            <div className="stat-card">
+                              <span className="stat-label">เข้า</span>
+                              <strong className="pct-good">{madeShots}</strong>
+                            </div>
+                            <div className="stat-card">
+                              <span className="stat-label">FG%</span>
+                              <strong>
+                                {fmtPct(
+                                  shotMarkers.length > 0
+                                    ? madeShots / shotMarkers.length
+                                    : null,
+                                )}
+                              </strong>
+                            </div>
+                          </div>
+                          <ul className="zone-legend">
+                            {teamZones.map((z) => (
+                              <li key={z.zone}>
+                                <span
+                                  className={`legend-dot ${
+                                    z.pct === null
+                                      ? ""
+                                      : z.pct >= 0.5
+                                        ? "hot"
+                                        : z.pct < 0.35
+                                          ? "cold"
+                                          : "warm"
+                                  }`}
+                                />
+                                {z.label}: {fmtPct(z.pct)} ({z.fgm}/{z.fga})
+                              </li>
+                            ))}
+                          </ul>
+                          <p className="muted">
+                            ใต้แป้น {distanceSplit.near} · ระยะไกล{" "}
+                            {distanceSplit.far}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                {hasEvents && tab === "zones" && (
+                  <>
+                    <section className="panel">
+                      <h2>โซนการยิง — ทีมรวม</h2>
+                      <div className="table-scroll">
+                        <table className="data-table wrap-cells">
+                          <thead>
+                            <tr>
+                              <th>โซน</th>
+                              <th>FGM</th>
+                              <th>FGA</th>
+                              <th>FG%</th>
+                              <th>สัดส่วน</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {teamZones.map((z) => {
+                              const totalFga = teamZones.reduce(
+                                (s, x) => s + x.fga,
+                                0,
+                              );
+                              return (
+                                <tr key={z.zone}>
+                                  <td>{z.label}</td>
+                                  <td>{z.fgm}</td>
+                                  <td>{z.fga}</td>
+                                  <td className={pctClass(z.pct, 0.45)}>
+                                    {fmtPct(z.pct)}
+                                  </td>
+                                  <td>
+                                    {totalFga > 0
+                                      ? fmtPct(z.fga / totalFga)
+                                      : "—"}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+
+                    <section className="panel">
+                      <h2>โซนการยิง — รายผู้เล่น</h2>
+                      <div className="zone-grid">
+                        {playerZones.map((row) => (
+                          <div key={row.playerId} className="zone-card">
+                            <h3>
+                              {row.jersey} {row.playerName}
+                            </h3>
+                            <table className="data-table compact wrap-cells">
+                              <thead>
+                                <tr>
+                                  <th>โซน</th>
+                                  <th>FG</th>
+                                  <th>%</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {row.zones
+                                  .filter((z) => z.fga > 0)
+                                  .map((z) => (
+                                    <tr key={z.zone}>
+                                      <td>{z.label}</td>
+                                      <td>
+                                        {z.fgm}/{z.fga}
+                                      </td>
+                                      <td>{fmtPct(z.pct)}</td>
+                                    </tr>
+                                  ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  </>
+                )}
+              </div>
             </>
           )}
-        </>
-      )}
         </>
       )}
     </div>

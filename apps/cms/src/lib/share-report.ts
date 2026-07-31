@@ -1,3 +1,4 @@
+import { toPng } from "html-to-image";
 import { fmtPct } from "./coach-reports";
 import type { FullBoxLine } from "./stats-reports";
 
@@ -17,44 +18,6 @@ type ShareInput = {
     tpa: number;
   } | null;
 };
-
-/** Plain-text summary for sharing a single match report */
-export function buildMatchShareText(input: ShareInput): string {
-  const when = input.scheduledAt
-    ? new Date(input.scheduledAt).toLocaleString("th-TH")
-    : "ไม่ระบุเวลา";
-  const lines: string[] = [
-    "SP FITNESS — รายงานแมตช์",
-    input.matchLabel,
-    `ทีม: ${input.teamName}`,
-    `เวลา: ${when}`,
-    "",
-  ];
-
-  if (input.totals) {
-    lines.push(
-      `รวมทีม: ${input.totals.pts} PTS · FG ${input.totals.fgm}/${input.totals.fga} · 3PT ${input.totals.tpm}/${input.totals.tpa} · REB ${input.totals.reb} · AST ${input.totals.ast}`,
-      "",
-    );
-  }
-
-  if (input.insights.length > 0) {
-    lines.push("คำแนะนำโค้ช:");
-    for (const tip of input.insights) lines.push(`• ${tip}`);
-    lines.push("");
-  }
-
-  lines.push("Box Score:");
-  lines.push("# | ผู้เล่น | PTS | REB | AST | FG | 3PT");
-  for (const row of input.box) {
-    lines.push(
-      `${row.jersey} | ${row.playerName} | ${row.pts} | ${row.reb} | ${row.ast} | ${row.fgm}/${row.fga} | ${row.tpm}/${row.tpa}`,
-    );
-  }
-
-  lines.push("", `สร้างจาก SP CMS · ${new Date().toLocaleString("th-TH")}`);
-  return lines.join("\n");
-}
 
 export function buildMatchShareCsv(input: ShareInput): string {
   const rows = [
@@ -118,19 +81,48 @@ export function downloadTextFile(
   URL.revokeObjectURL(url);
 }
 
-export async function shareOrDownloadText(
-  title: string,
-  text: string,
-  filename: string,
-): Promise<"shared" | "downloaded"> {
-  if (typeof navigator !== "undefined" && navigator.share) {
+/** Absolute public share URL for a match report (no login required). */
+export function publicReportUrl(gameId: string): string {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  return `${origin}/share/${gameId}`;
+}
+
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
     try {
-      await navigator.share({ title, text });
-      return "shared";
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
     } catch {
-      // fall through to download on cancel/unsupported payload
+      return false;
     }
   }
-  downloadTextFile(filename, text);
-  return "downloaded";
+}
+
+/** Capture a DOM subtree as PNG and trigger download (report body only). */
+export async function downloadElementPng(
+  element: HTMLElement,
+  filename: string,
+): Promise<void> {
+  const dataUrl = await toPng(element, {
+    cacheBust: true,
+    pixelRatio: Math.min(window.devicePixelRatio || 2, 2),
+    backgroundColor: "#ffffff",
+  });
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
