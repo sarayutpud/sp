@@ -159,19 +159,32 @@ textarea {
 }
 
 .login-logo {
-  width: 84px;
-  height: 84px;
-  border-radius: 20px;
+  width: 112px;
+  height: 112px;
+  border-radius: 24px;
   border: 3px solid var(--yellow);
   box-shadow: var(--shadow);
   object-fit: cover;
 }
 
-.login-card h1 {
-  margin: 1rem 0 0.25rem;
+.login-brand {
+  margin: 0.85rem 0 0;
   color: var(--navy);
-  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+}
+
+.login-card h1 {
+  margin: 0.2rem 0 0.35rem;
+  color: var(--navy);
+  font-size: 1.35rem;
   letter-spacing: 0.01em;
+}
+
+.login-sub {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
 }
 
 .auth {
@@ -369,6 +382,25 @@ textarea {
 .nav-icon {
   font-size: 1.05rem;
   line-height: 1;
+}
+
+.nav-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: var(--navy);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+
+.nav-link.active .nav-mark {
+  background: rgba(15, 22, 84, 0.12);
 }
 
 .nav-link:hover {
@@ -970,6 +1002,84 @@ textarea {
 
   .tab {
     flex: none;
+  }
+}
+
+.banner {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: 1rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.banner.info {
+  background: #eef2ff;
+  border: 1px solid #c5cae9;
+  color: var(--navy);
+}
+
+.banner.warn {
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  color: #6d4c00;
+}
+
+.scope-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.scope-tabs .tab {
+  min-width: 6.5rem;
+}
+
+.empty-state {
+  text-align: left;
+  padding: 0.5rem 0.15rem 0.25rem;
+}
+
+.empty-state h3 {
+  margin: 0 0 0.5rem;
+  color: var(--navy);
+  font-size: 1.05rem;
+}
+
+.empty-steps {
+  margin: 0 0 1rem;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  line-height: 1.55;
+  font-size: 0.92rem;
+}
+
+.data-table.sticky-name th:first-child,
+.data-table.sticky-name td:first-child {
+  position: sticky;
+  left: 0;
+  background: #fff;
+  z-index: 1;
+  box-shadow: 1px 0 0 var(--line);
+}
+
+.data-table.sticky-name th:first-child {
+  z-index: 3;
+}
+
+.data-table.sticky-name tbody tr:hover td:first-child {
+  background: var(--panel-soft);
+}
+
+.data-table.sticky-name tr.selected td:first-child {
+  background: #fff9d6;
+}
+
+@media (max-width: 720px) {
+  .data-table.mobile-priority th.hide-sm,
+  .data-table.mobile-priority td.hide-sm {
+    display: none;
   }
 }
 

@@ -1,6 +1,7 @@
 import { ShotChartView } from "@sp/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { fetchGames, fetchPbp, fetchPlayers, fetchTeams } from "../lib/api";
 import {
   buildCoachInsights,
@@ -10,6 +11,7 @@ import {
   buildTeamZones,
   fmtPct,
 } from "../lib/coach-reports";
+import { analyzeEventCoverage } from "../lib/coverage";
 import {
   buildMatchShareCsv,
   buildMatchShareText,
@@ -23,8 +25,10 @@ import {
   shotDistanceSplit,
   sumBoxLines,
 } from "../lib/stats-reports";
+import { SeasonReportPage } from "./SeasonReportPage";
 
 type ReportTab = "insights" | "box" | "advanced" | "shotchart" | "zones";
+type ReportScope = "match" | "season";
 
 const RECENT_LIMIT = 10;
 
@@ -41,10 +45,18 @@ function fmtRating(v: number | null): string {
 }
 
 export function ReportsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const scope: ReportScope =
+    searchParams.get("scope") === "season" ? "season" : "match";
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [teamFilter, setTeamFilter] = useState<string>("");
   const [tab, setTab] = useState<ReportTab>("insights");
   const [shareMsg, setShareMsg] = useState("");
+
+  const setScope = (next: ReportScope) => {
+    if (next === "season") setSearchParams({ scope: "season" });
+    else setSearchParams({});
+  };
 
   const games = useQuery({ queryKey: ["games"], queryFn: fetchGames });
   const teams = useQuery({ queryKey: ["teams"], queryFn: fetchTeams });
@@ -169,6 +181,10 @@ export function ReportsPage() {
   const madeShots = shotMarkers.filter((s) => s.made).length;
   const hasEvents = (pbp.data?.length ?? 0) > 0;
   const hasShots = shotMarkers.length > 0;
+  const coverage = useMemo(
+    () => analyzeEventCoverage(pbp.data ?? [], activeTeamId),
+    [pbp.data, activeTeamId],
+  );
 
   const exportShare = async () => {
     if (!sharePayload || !selectedGameId) return;
@@ -198,21 +214,60 @@ export function ReportsPage() {
   return (
     <div className="page-block">
       <header className="page-head">
-        <h1>รายงานสรุปย้อนหลัง</h1>
+        <h1>รายงาน</h1>
         <p className="muted">
-          รายงานสำหรับโค้ช — สถิติพื้นฐาน สถิติขั้นสูง และแผนภาพการยิง
+          สถิติทีมเรา — แมตช์เดี่ยวหรือรวมฤดูกาล (ไม่รวมรายคนคู่แข่ง)
         </p>
       </header>
 
+      <div className="scope-tabs" role="tablist" aria-label="ประเภทรายงาน">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={scope === "match"}
+          className={scope === "match" ? "tab active" : "tab"}
+          onClick={() => setScope("match")}
+        >
+          แมตช์
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={scope === "season"}
+          className={scope === "season" ? "tab active" : "tab"}
+          onClick={() => setScope("season")}
+        >
+          ฤดูกาล
+        </button>
+      </div>
+
+      {scope === "season" ? (
+        <SeasonReportPage embedded />
+      ) : (
+        <>
       <section className="panel">
         <h2>เลือกแมตช์ (10 นัดล่าสุด)</h2>
         <p className="muted report-note">
-          แสดงเฉพาะ 10 รายการล่าสุดตามเวลาแข่ง — สร้างแมตช์ใหม่ได้ที่เมนู “จัดการแมตช์”
+          สร้างแมตช์ใหม่ได้ที่เมนูแมตช์ — แล้วบันทึกจาก Courtside แล้วซิงก์
         </p>
         {games.isLoading && <p>โหลด…</p>}
         {games.isError && (
           <p className="err">{(games.error as Error).message}</p>
         )}
+        {!games.isLoading && recentGames.length === 0 && (
+          <div className="empty-state">
+            <h3>ยังไม่มีแมตช์</h3>
+            <ol className="empty-steps">
+              <li>สร้างแมตช์ในเมนูแมตช์</li>
+              <li>เปิด Courtside บันทึกสถิติทีมเรา</li>
+              <li>กดซิงก์ แล้วกลับมาเลือกรายงาน</li>
+            </ol>
+            <Link to="/games" className="btn primary">
+              ไปสร้างแมตช์
+            </Link>
+          </div>
+        )}
+        {recentGames.length > 0 && (
         <div className="table-scroll">
           <table className="data-table wrap-cells">
             <thead>
@@ -260,16 +315,10 @@ export function ReportsPage() {
                   </td>
                 </tr>
               ))}
-              {recentGames.length === 0 && !games.isLoading && (
-                <tr>
-                  <td colSpan={3} className="muted">
-                    ยังไม่มีแมตช์
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
+        )}
       </section>
 
       {selectedGame && (
@@ -303,6 +352,16 @@ export function ReportsPage() {
             </div>
           </div>
 
+          {hasEvents && coverage.missingLabels.length > 0 && (
+            <div className="banner warn">
+              ข้อมูลยังไม่ครบสำหรับวิเคราะห์เต็มรูปแบบ — ยังไม่มี:{" "}
+              {coverage.missingLabels.join(", ")}
+              {!coverage.hasReb || !coverage.hasTo
+                ? " · OffRtg/possessions อาจคลาดเคลื่อน"
+                : ""}
+            </div>
+          )}
+
           {hasEvents && (
             <section className="panel">
               <h2>แชร์รายงานนัดนี้</h2>
@@ -331,9 +390,14 @@ export function ReportsPage() {
 
           {!pbp.isLoading && !hasEvents && (
             <section className="panel">
-              <p className="muted">
-                ยังไม่มีข้อมูลในแมตช์นี้ — บันทึกผ่าน Courtside แล้วซิงก์ก่อน
-              </p>
+              <div className="empty-state">
+                <h3>ยังไม่มีข้อมูลในแมตช์นี้</h3>
+                <ol className="empty-steps">
+                  <li>เปิด Courtside เลือกแมตช์นี้</li>
+                  <li>บันทึกช็อตและเหตุการณ์ทีมเรา</li>
+                  <li>กดซิงก์ แล้วรีเฟรชรายงาน</li>
+                </ol>
+              </div>
             </section>
           )}
 
@@ -385,21 +449,21 @@ export function ReportsPage() {
                 เทิร์นโอเวอร์ · PF ฟาวล์
               </p>
               <div className="table-scroll">
-                <table className="data-table wrap-cells">
+                <table className="data-table wrap-cells sticky-name mobile-priority">
                   <thead>
                     <tr>
                       <th>#</th>
                       <th>ผู้เล่น</th>
                       <th>PTS</th>
                       <th>REB</th>
-                      <th>AST</th>
-                      <th>STL</th>
-                      <th>BLK</th>
-                      <th>TO</th>
-                      <th>PF</th>
+                      <th className="hide-sm">AST</th>
+                      <th className="hide-sm">STL</th>
+                      <th className="hide-sm">BLK</th>
+                      <th className="hide-sm">TO</th>
+                      <th className="hide-sm">PF</th>
                       <th>FG</th>
-                      <th>3PT</th>
-                      <th>FT</th>
+                      <th className="hide-sm">3PT</th>
+                      <th className="hide-sm">FT</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -411,18 +475,18 @@ export function ReportsPage() {
                           <strong>{l.pts}</strong>
                         </td>
                         <td>{l.reb}</td>
-                        <td>{l.ast}</td>
-                        <td>{l.stl}</td>
-                        <td>{l.blk}</td>
-                        <td>{l.tov}</td>
-                        <td>{l.pf}</td>
+                        <td className="hide-sm">{l.ast}</td>
+                        <td className="hide-sm">{l.stl}</td>
+                        <td className="hide-sm">{l.blk}</td>
+                        <td className="hide-sm">{l.tov}</td>
+                        <td className="hide-sm">{l.pf}</td>
                         <td>
                           {l.fgm}/{l.fga}
                         </td>
-                        <td>
+                        <td className="hide-sm">
                           {l.tpm}/{l.tpa}
                         </td>
-                        <td>
+                        <td className="hide-sm">
                           {l.ftm}/{l.fta}
                         </td>
                       </tr>
@@ -436,18 +500,18 @@ export function ReportsPage() {
                           <strong>{boxTotals.pts}</strong>
                         </td>
                         <td>{boxTotals.reb}</td>
-                        <td>{boxTotals.ast}</td>
-                        <td>{boxTotals.stl}</td>
-                        <td>{boxTotals.blk}</td>
-                        <td>{boxTotals.tov}</td>
-                        <td>{boxTotals.pf}</td>
+                        <td className="hide-sm">{boxTotals.ast}</td>
+                        <td className="hide-sm">{boxTotals.stl}</td>
+                        <td className="hide-sm">{boxTotals.blk}</td>
+                        <td className="hide-sm">{boxTotals.tov}</td>
+                        <td className="hide-sm">{boxTotals.pf}</td>
                         <td>
                           {boxTotals.fgm}/{boxTotals.fga}
                         </td>
-                        <td>
+                        <td className="hide-sm">
                           {boxTotals.tpm}/{boxTotals.tpa}
                         </td>
-                        <td>
+                        <td className="hide-sm">
                           {boxTotals.ftm}/{boxTotals.fta}
                         </td>
                       </tr>
@@ -692,6 +756,8 @@ export function ReportsPage() {
               </section>
             </>
           )}
+        </>
+      )}
         </>
       )}
     </div>

@@ -3,10 +3,10 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 
 const NAV = [
-  { to: "/players", label: "จัดการผู้เล่น", icon: "🏀" },
-  { to: "/rosters", label: "จัดสรรรายชื่อ", icon: "📋" },
-  { to: "/games", label: "จัดการแมตช์", icon: "🗓️" },
-  { to: "/reports", label: "รายงานสรุป", icon: "📊" },
+  { to: "/players", label: "ผู้เล่น", mark: "P" },
+  { to: "/rosters", label: "รายชื่อ", mark: "R" },
+  { to: "/games", label: "แมตช์", mark: "M" },
+  { to: "/reports", label: "รายงาน", mark: "Σ" },
 ] as const;
 
 export function AppLayout() {
@@ -67,8 +67,8 @@ export function AppLayout() {
                 isActive ? "nav-link active" : "nav-link"
               }
             >
-              <span className="nav-icon" aria-hidden="true">
-                {item.icon}
+              <span className="nav-mark" aria-hidden="true">
+                {item.mark}
               </span>
               {item.label}
             </NavLink>
@@ -80,8 +80,8 @@ export function AppLayout() {
             rel="noreferrer"
             onClick={closeMenu}
           >
-            <span className="nav-icon" aria-hidden="true">
-              📖
+            <span className="nav-mark" aria-hidden="true">
+              ?
             </span>
             คู่มือ
           </a>

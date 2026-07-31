@@ -46,6 +46,23 @@ body {
   background: linear-gradient(90deg, var(--navy-deep), var(--navy));
 }
 
+.topbar-compact {
+  padding: 0.4rem 0.75rem;
+  border-bottom-width: 2px;
+}
+
+.topbar-compact .brand {
+  font-size: 1.05rem;
+}
+
+.topbar-compact .brand-tag {
+  font-size: 0.65rem;
+}
+
+.topbar-compact .sync {
+  font-size: 0.82rem;
+}
+
 .brand-wrap {
   display: flex;
   align-items: center;
@@ -59,6 +76,12 @@ body {
   object-fit: cover;
   border: 2px solid var(--yellow);
   background: var(--yellow);
+}
+
+.topbar-compact .brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
 }
 
 .brand {
@@ -120,6 +143,28 @@ body {
   color: var(--yellow);
 }
 
+.court-panel {
+  border-radius: 12px;
+  padding: 0.25rem;
+  transition: box-shadow 0.25s ease, outline-color 0.25s ease;
+}
+
+.court-panel.awaiting-shot {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+  animation: awaiting-pulse 2s ease-in-out infinite;
+}
+
+@keyframes awaiting-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 214, 0, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 14px 4px rgba(255, 214, 0, 0.45);
+  }
+}
+
 .side {
   display: flex;
   flex-direction: column;
@@ -171,6 +216,39 @@ body {
   color: var(--navy-deep);
   border-color: var(--yellow);
   font-weight: 800;
+}
+
+.btn.danger {
+  background: #b71c1c;
+  border-color: #ef5350;
+  color: #fff;
+}
+
+.btn.danger:hover:not(:disabled) {
+  border-color: #ff8a80;
+  background: #c62828;
+}
+
+.btn.info {
+  background: #1565c0;
+  border-color: #42a5f5;
+  color: #fff;
+}
+
+.btn.info:hover:not(:disabled) {
+  border-color: #90caf9;
+  background: #1976d2;
+}
+
+.btn.accent {
+  background: var(--yellow);
+  color: var(--navy-deep);
+  border-color: var(--yellow-dim);
+  font-weight: 800;
+}
+
+.btn.accent:hover:not(:disabled) {
+  border-color: #fff;
 }
 
 .btn.tiny {
@@ -225,10 +303,277 @@ body {
   border-bottom: 1px solid var(--line);
 }
 
-.game-banner strong {
-  display: block;
+.game-banner-compact {
+  padding: 0.35rem 0.75rem;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+}
+
+.game-banner-label {
   color: var(--yellow);
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(40vw, 280px);
+}
+
+.banner-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.chip {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 8px;
+  background: #24306f;
+  border: 1px solid var(--line);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.action-bar-primary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.action-bar-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.action-bar-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.action-bar .btn.active {
+  border-color: var(--yellow);
+  background: rgba(255, 214, 0, 0.15);
+}
+
+.action-bar .btn {
+  min-height: 44px;
+  padding: 0.5rem 0.9rem;
+}
+
+.action-bar-primary .btn {
+  min-width: 5.5rem;
+  flex: 1 1 auto;
+}
+
+.foul-warn {
+  border-color: var(--yellow) !important;
+  color: var(--yellow) !important;
+}
+
+.foul-out,
+.btn.foul-out {
+  border-color: var(--danger) !important;
+  color: #ff8a80 !important;
+}
+
+.players.compact {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.players.compact li {
+  padding: 0.2rem 0;
+}
+
+/* On-court player chips strip */
+.oncourt-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+  padding: 0.45rem 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.oncourt-strip-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-right: 0.25rem;
+}
+
+.player-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  min-width: 3.4rem;
+  max-width: 4.8rem;
+  padding: 0.35rem 0.4rem 0.3rem;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: #24306f;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.player-chip:hover:not(:disabled) {
+  border-color: var(--yellow);
+}
+
+.player-chip:disabled {
+  cursor: default;
+}
+
+.player-chip-static:disabled {
+  opacity: 1;
+}
+
+.player-chip-num {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--yellow);
+  line-height: 1;
+}
+
+.player-chip-name {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-chip-fouls {
+  display: flex;
+  gap: 2px;
   margin-top: 0.15rem;
+}
+
+.player-chip-fouls i {
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.player-chip-fouls i.on {
+  background: var(--danger);
+}
+
+.player-pick-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.5rem 0;
+}
+
+/* Wizard overlay */
+.wizard-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+  pointer-events: none;
+}
+
+.wizard-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(8, 12, 40, 0.72);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.wizard-sheet {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 100%);
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  background: var(--panel);
+  border: 2px solid var(--yellow);
+  border-radius: 14px 14px 10px 10px;
+  padding: 1rem 1.1rem 1.15rem;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.wizard-sheet h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  color: var(--yellow);
+}
+
+.wizard-sheet p {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  max-width: min(90vw, 420px);
+  padding: 0.65rem 1.1rem;
+  border: 2px solid var(--yellow);
+  border-radius: 999px;
+  background: var(--navy-deep);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  animation: toast-in 0.2s ease-out;
+}
+
+.toast:hover {
+  background: var(--navy);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .pregame {

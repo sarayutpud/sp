@@ -1,27 +1,157 @@
-import { shotAttemptFlags } from "@sp/rules-engine";
-import type { BasketSide, Hlc, PlayByPlayEvent } from "@sp/shared-types";
-import { createHlc, tickHlc } from "@sp/sync-protocol";
+import {
+  attackSideForPeriod,
+  isInBonus,
+  isPlayerFouledOut,
+  shotAttemptFlags,
+} from "@sp/rules-engine";
+import type {
+  BasketSide,
+  FoulKind,
+  Hlc,
+  PlayByPlayEvent,
+  ReboundKind,
+} from "@sp/shared-types";
+import { createHlc } from "@sp/sync-protocol";
 import { ShotChart, type ShotChartClick } from "@sp/ui";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { PreGameScreen } from "./PreGameScreen";
 import { th } from "./i18n/th";
 import { exportGameExcel } from "./lib/excel";
 import {
   type ActiveGameSession,
+  type OnCourtPlayer,
+  applySub,
+  bumpPlayerFoul,
   clearSession,
+  endPeriod,
   loadSession,
+  saveSession,
 } from "./lib/game-session";
 import { type LocalStore, createLocalStore } from "./lib/local-store";
+import {
+  astEvent,
+  blkEvent,
+  foulEvent,
+  ftEvent,
+  nextHlc,
+  periodEndEvent,
+  rebEvent,
+  shotEvent,
+  stlEvent,
+  subEvent,
+  toEvent,
+} from "./lib/live-events";
 import { saveBlob } from "./lib/save-download";
 import { pushOutbox } from "./lib/sync-client";
 
 type Wizard =
   | { step: "idle" }
   | { step: "outcome"; shot: ShotChartClick }
-  | { step: "player"; shot: ShotChartClick; made: boolean };
+  | { step: "player"; shot: ShotChartClick; made: boolean }
+  | { step: "assist"; shot: ShotChartClick; playerId: string; shotEventId: string }
+  | {
+      step: "afterMiss";
+      shot: ShotChartClick;
+      playerId: string;
+      shotEventId: string;
+    }
+  | { step: "rebPlayer"; kind: ReboundKind; shotEventId: string }
+  | { step: "foulPlayer" }
+  | { step: "foulKind"; playerId: string }
+  | { step: "ftPlayer" }
+  | { step: "ftCount"; playerId: string }
+  | {
+      step: "ft";
+      playerId: string;
+      attemptNo: number;
+      ofAttempts: number;
+    }
+  | { step: "subOut" }
+  | { step: "subIn"; playerOutId: string }
+  | { step: "steal" }
+  | { step: "block" };
 
 const DEVICE_ID = "courtside-web-dev";
+const FOUL_OUT = 5;
+const BONUS_AT = 5;
+
+function foulClass(fouls: number): string {
+  if (fouls >= FOUL_OUT) return "foul-out";
+  if (fouls >= 4) return "foul-warn";
+  return "";
+}
+
+function PlayerChipBtn({
+  jersey,
+  name,
+  fouls,
+  onClick,
+  disabled,
+  className,
+}: {
+  jersey: string;
+  name: string;
+  fouls?: number;
+  onClick?: () => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const fc = fouls != null ? foulClass(fouls) : "";
+  return (
+    <button
+      type="button"
+      className={`player-chip ${fc} ${className ?? ""}`}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <span className="player-chip-num">{jersey}</span>
+      <span className="player-chip-name">{name}</span>
+      {fouls != null && (
+        <span className="player-chip-fouls" aria-label={`fouls ${fouls}`}>
+          {Array.from({ length: 5 }, (_, i) => (
+            <i key={i} className={i < fouls ? "on" : ""} />
+          ))}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function PlayerPickGrid({
+  players,
+  onPick,
+  disabled,
+}: {
+  players: OnCourtPlayer[];
+  onPick: (id: string) => void;
+  disabled?: (p: OnCourtPlayer) => boolean;
+}) {
+  return (
+    <div className="player-pick-grid">
+      {players.map((p) => (
+        <PlayerChipBtn
+          key={p.id}
+          jersey={p.jerseyNumber}
+          name={p.name}
+          fouls={p.fouls}
+          disabled={disabled?.(p)}
+          onClick={() => onPick(p.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function eventLabel(e: PlayByPlayEvent): string {
+  const p = e.payload as Record<string, unknown>;
+  if (e.type === "SHOT") return `SHOT ${p.made ? "เข้า" : "ไม่เข้า"}`;
+  if (e.type === "FT") return `FT ${p.made ? "เข้า" : "ไม่เข้า"} ${p.attemptNo}/${p.ofAttempts}`;
+  if (e.type === "FOUL") return `FOUL ${String(p.kind ?? "")}`;
+  if (e.type === "REB") return `REB ${String(p.kind ?? "")}`;
+  if (e.type === "SUB") return "SUB";
+  return e.type;
+}
 
 export function App() {
   const [store, setStore] = useState<LocalStore | null>(null);
@@ -35,10 +165,25 @@ export function App() {
   const [wizard, setWizard] = useState<Wizard>({ step: "idle" });
   const [lastSynced, setLastSynced] = useState<string>("—");
   const [syncMsg, setSyncMsg] = useState<string>("");
+  const [showMoreFouls, setShowMoreFouls] = useState(false);
+  const [showMoreActions, setShowMoreActions] = useState(false);
+  const syncingRef = useRef(false);
 
   const gameId = session?.gameId ?? "";
-  const basketSide: BasketSide = session?.homeAttackSide ?? "LEFT";
+  const basketSide: BasketSide = useMemo(() => {
+    if (!session) return "LEFT";
+    const isHome = session.ourTeamId === session.homeTeamId;
+    return attackSideForPeriod(
+      session.homeAttackSide,
+      session.period,
+      isHome,
+    );
+  }, [session]);
   const onCourt = session?.onCourt ?? [];
+  const bench = session?.bench ?? [];
+  const inBonus = session
+    ? isInBonus(session.ourTeamFoulsPeriod, BONUS_AT)
+    : false;
 
   const refresh = useCallback(async (s: LocalStore, activeGameId: string) => {
     if (!activeGameId) {
@@ -53,6 +198,47 @@ export function App() {
     setLastSynced(synced ? new Date(synced).toLocaleTimeString("th-TH") : "—");
   }, []);
 
+  const persistSession = useCallback(
+    async (next: ActiveGameSession) => {
+      setSession(next);
+      if (store) await saveSession(store, next);
+    },
+    [store],
+  );
+
+  const appendAndRefresh = useCallback(
+    async (event: PlayByPlayEvent, nextSession?: ActiveGameSession) => {
+      if (!store) return;
+      await store.appendEvent(event);
+      if (nextSession) await persistSession(nextSession);
+      await refresh(store, event.gameId);
+    },
+    [store, persistSession, refresh],
+  );
+
+  const syncNow = useCallback(
+    async (auto = false) => {
+      if (!store || syncingRef.current) return;
+      syncingRef.current = true;
+      try {
+        const result = await pushOutbox(store, session);
+        if (gameId) await refresh(store, gameId);
+        if (result.ok) {
+          setSyncMsg(
+            auto
+              ? `${th.autoSynced} +${result.inserted}`
+              : `ซิงก์แล้ว +${result.inserted} (ข้าม ${result.skipped})`,
+          );
+        } else {
+          setSyncMsg(`ซิงก์ไม่สำเร็จ: ${result.error}`);
+        }
+      } finally {
+        syncingRef.current = false;
+      }
+    },
+    [store, session, gameId, refresh],
+  );
+
   useEffect(() => {
     let cancelled = false;
     createLocalStore().then(async (s) => {
@@ -64,7 +250,9 @@ export function App() {
         await refresh(s, saved.gameId);
       }
     });
-    const onOnline = () => setOnline(true);
+    const onOnline = () => {
+      setOnline(true);
+    };
     const onOffline = () => setOnline(false);
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
@@ -74,6 +262,19 @@ export function App() {
       window.removeEventListener("offline", onOffline);
     };
   }, [refresh]);
+
+  // Auto-sync when coming online with pending items
+  useEffect(() => {
+    if (!online || !store || !session || pending <= 0) return;
+    const t = window.setTimeout(() => void syncNow(true), 400);
+    return () => window.clearTimeout(t);
+  }, [online, store, session, pending, syncNow]);
+
+  useEffect(() => {
+    if (!syncMsg) return;
+    const t = window.setTimeout(() => setSyncMsg(""), 3200);
+    return () => window.clearTimeout(t);
+  }, [syncMsg]);
 
   const handleStartGame = useCallback(
     async (next: ActiveGameSession) => {
@@ -109,49 +310,147 @@ export function App() {
     e.preventDefault();
     void undo();
   });
+  useHotkeys("escape", () => setWizard({ step: "idle" }));
+  useHotkeys("f", () => {
+    if (session) setWizard({ step: "foulPlayer" });
+  });
 
-  const persistShot = useCallback(
-    async (shot: ShotChartClick, made: boolean, playerId: string) => {
+  const tick = useCallback(() => {
+    const n = nextHlc(hlc);
+    setHlc(n);
+    return n;
+  }, [hlc]);
+
+  const finishShotMade = useCallback(
+    async (shot: ShotChartClick, playerId: string, assistId: string | null) => {
       if (!store || !session) return;
-      const flags = shotAttemptFlags({ made, fouledOnShot: false });
-      const nextHlc = tickHlc(hlc);
-      setHlc(nextHlc);
-      const event: PlayByPlayEvent = {
-        eventId: crypto.randomUUID(),
-        gameId: session.gameId,
-        period: session.period,
-        teamId: session.homeTeamId,
+      const flags = shotAttemptFlags({ made: true, fouledOnShot: false });
+      const h = tick();
+      const event = shotEvent(
+        session,
+        h,
+        shot,
+        true,
         playerId,
-        type: "SHOT",
-        hlc: nextHlc,
-        payload: {
-          x: shot.x,
-          y: shot.y,
-          basketSide: shot.basketSide,
-          isThree: shot.isThree,
-          made,
-          shotType: "JUMP_SHOT",
-          countsAsFga: flags.countsAsFga,
-          andOne: flags.andOne,
-        },
-      };
+        flags,
+        assistId,
+      );
       await store.appendEvent(event);
+      if (assistId) {
+        const h2 = nextHlc(h);
+        setHlc(h2);
+        await store.appendEvent(astEvent(session, h2, assistId));
+      }
       await refresh(store, session.gameId);
       setWizard({ step: "idle" });
     },
-    [store, session, hlc, refresh],
+    [store, session, tick, refresh],
   );
 
-  const syncNow = useCallback(async () => {
-    if (!store) return;
-    const result = await pushOutbox(store, session);
-    if (gameId) await refresh(store, gameId);
-    setSyncMsg(
-      result.ok
-        ? `ซิงก์แล้ว +${result.inserted} (ข้าม ${result.skipped})`
-        : `ซิงก์ไม่สำเร็จ: ${result.error}`,
-    );
-  }, [store, gameId, refresh, session]);
+  const persistShotMissThen = useCallback(
+    async (shot: ShotChartClick, playerId: string) => {
+      if (!store || !session) return;
+      const flags = shotAttemptFlags({ made: false, fouledOnShot: false });
+      const h = tick();
+      const event = shotEvent(session, h, shot, false, playerId, flags);
+      await store.appendEvent(event);
+      await refresh(store, session.gameId);
+      setWizard({
+        step: "afterMiss",
+        shot,
+        playerId,
+        shotEventId: event.eventId,
+      });
+    },
+    [store, session, tick, refresh],
+  );
+
+  const completeFoul = useCallback(
+    async (playerId: string, kind: FoulKind) => {
+      if (!store || !session) return;
+      const h = tick();
+      const foul = foulEvent(session, h, playerId, kind);
+      const next = bumpPlayerFoul(session, playerId);
+      await store.appendEvent(foul);
+      await persistSession(next);
+      await refresh(store, session.gameId);
+      setWizard({ step: "idle" });
+      const fouls =
+        next.onCourt.find((p) => p.id === playerId)?.fouls ??
+        next.bench.find((p) => p.id === playerId)?.fouls ??
+        0;
+      if (isPlayerFouledOut(fouls, FOUL_OUT)) {
+        setSyncMsg(th.fouledOut);
+      } else if (isInBonus(next.ourTeamFoulsPeriod, BONUS_AT)) {
+        setSyncMsg(th.bonus);
+      }
+    },
+    [store, session, tick, persistSession, refresh],
+  );
+
+  const recordFt = useCallback(
+    async (made: boolean) => {
+      if (!store || !session || wizard.step !== "ft") return;
+      const { playerId, attemptNo, ofAttempts } = wizard;
+      const h = tick();
+      await appendAndRefresh(
+        ftEvent(session, h, playerId, made, attemptNo, ofAttempts),
+      );
+      if (attemptNo >= ofAttempts) setWizard({ step: "idle" });
+      else
+        setWizard({
+          step: "ft",
+          playerId,
+          attemptNo: attemptNo + 1,
+          ofAttempts,
+        });
+    },
+    [store, session, wizard, tick, appendAndRefresh],
+  );
+
+  const recordReb = useCallback(
+    async (kind: ReboundKind, playerId: string, shotEventId: string) => {
+      if (!store || !session) return;
+      const h = tick();
+      await appendAndRefresh(rebEvent(session, h, playerId, kind, shotEventId));
+      setWizard({ step: "idle" });
+    },
+    [store, session, tick, appendAndRefresh],
+  );
+
+  const recordTo = useCallback(
+    async (playerId: string | null) => {
+      if (!store || !session) return;
+      const h = tick();
+      await appendAndRefresh(toEvent(session, h, playerId));
+      setWizard({ step: "idle" });
+    },
+    [store, session, tick, appendAndRefresh],
+  );
+
+  const doSub = useCallback(
+    async (playerOutId: string, playerInId: string) => {
+      if (!store || !session) return;
+      const h = tick();
+      const next = applySub(session, playerOutId, playerInId);
+      await store.appendEvent(subEvent(session, h, playerOutId, playerInId));
+      await persistSession(next);
+      await refresh(store, session.gameId);
+      setWizard({ step: "idle" });
+    },
+    [store, session, tick, persistSession, refresh],
+  );
+
+  const doEndPeriod = useCallback(async () => {
+    if (!store || !session) return;
+    if (!window.confirm(`จบ ${th.periodLabel(session.period)}?`)) return;
+    const h = tick();
+    await store.appendEvent(periodEndEvent(session, h));
+    await persistSession(endPeriod(session));
+    await refresh(store, session.gameId);
+    setWizard({ step: "idle" });
+    setSyncMsg(`จบ ${th.periodLabel(session.period)} แล้ว`);
+  }, [store, session, tick, persistSession, refresh]);
 
   const backup = useCallback(async () => {
     if (!store || !gameId) return;
@@ -186,6 +485,11 @@ export function App() {
     return th.syncOnline;
   }, [online, pending]);
 
+  const openWizard = useCallback((w: Wizard) => {
+    if (w.step !== "idle") setShowMoreActions(false);
+    setWizard(w);
+  }, []);
+
   if (!store) {
     return (
       <div className="shell">
@@ -219,7 +523,7 @@ export function App() {
 
   return (
     <div className="shell">
-      <header className="topbar">
+      <header className="topbar topbar-compact">
         <div className="brand-wrap">
           <img className="brand-logo" src="/sp-logo.png" alt="SP FITNESS" />
           <div>
@@ -237,7 +541,7 @@ export function App() {
           <button
             type="button"
             className="btn tiny"
-            onClick={() => void syncNow()}
+            onClick={() => void syncNow(false)}
           >
             ซิงก์
           </button>
@@ -252,99 +556,130 @@ export function App() {
         </div>
       </header>
 
-      <div className="game-banner">
-        <div>
-          <span className="muted">{th.currentGame}</span>
-          <strong>{session.label}</strong>
+      <div className="game-banner game-banner-compact">
+        <strong className="game-banner-label">{session.label}</strong>
+        <div className="banner-meta">
+          <span className="chip">{th.periodLabel(session.period)}</span>
+          <span className="chip">
+            {th.teamFouls(session.ourTeamFoulsPeriod)}
+            {inBonus ? ` · ${th.bonus}` : ""}
+          </span>
+          <button
+            type="button"
+            className="btn tiny"
+            onClick={() => void doEndPeriod()}
+          >
+            {th.endPeriod}
+          </button>
+          <button
+            type="button"
+            className="btn tiny"
+            onClick={() => void handleChangeGame()}
+          >
+            {th.changeGame}
+          </button>
         </div>
-        <button
-          type="button"
-          className="btn tiny"
-          onClick={() => void handleChangeGame()}
-        >
-          {th.changeGame}
-        </button>
+      </div>
+
+      <div className="action-bar">
+        <div className="action-bar-primary">
+          <button
+            type="button"
+            className="btn danger"
+            onClick={() => openWizard({ step: "foulPlayer" })}
+          >
+            {th.actionFoul}
+          </button>
+          <button
+            type="button"
+            className="btn info"
+            onClick={() => openWizard({ step: "subOut" })}
+          >
+            {th.actionSub}
+          </button>
+          <button
+            type="button"
+            className="btn accent"
+            onClick={() => openWizard({ step: "ftPlayer" })}
+          >
+            {th.actionFt}
+          </button>
+        </div>
+        <div className="action-bar-more">
+          <button
+            type="button"
+            className={`btn tiny ${showMoreActions ? "active" : ""}`}
+            onClick={() => setShowMoreActions((v) => !v)}
+          >
+            {th.actionMore}
+          </button>
+          {showMoreActions && (
+            <div className="action-bar-secondary">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => openWizard({ step: "steal" })}
+              >
+                {th.actionSteal}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => openWizard({ step: "block" })}
+              >
+                {th.actionBlock}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() =>
+                  openWizard({
+                    step: "rebPlayer",
+                    kind: "DEFENSIVE",
+                    shotEventId: "",
+                  })
+                }
+              >
+                {th.actionDreb}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <main className="main">
-        <section className="court-panel">
-          <h1>{th.shotPrompt}</h1>
+        <section
+          className={`court-panel${wizard.step === "idle" ? " awaiting-shot" : ""}`}
+        >
+          <div className="oncourt-strip">
+            <span className="oncourt-strip-label">{th.onCourtStrip}</span>
+            {onCourt.map((p) => (
+              <PlayerChipBtn
+                key={p.id}
+                jersey={p.jerseyNumber}
+                name={p.name}
+                fouls={p.fouls}
+                className="player-chip-static"
+                disabled
+              />
+            ))}
+          </div>
+          {wizard.step === "idle" && <h1>{th.shotPrompt}</h1>}
           <ShotChart
             basketSide={basketSide}
-            onShot={(shot) => setWizard({ step: "outcome", shot })}
+            onShot={(shot) => openWizard({ step: "outcome", shot })}
           />
-          {syncMsg && <p className="muted">{syncMsg}</p>}
         </section>
 
         <aside className="side">
-          {wizard.step === "outcome" && (
-            <div className="card">
-              <p>
-                {wizard.shot.isThree ? "3PT" : "2PT"} @ (
-                {wizard.shot.x.toFixed(2)}, {wizard.shot.y.toFixed(2)})
-              </p>
-              <div className="row">
-                <button
-                  type="button"
-                  className="btn primary"
-                  onClick={() =>
-                    setWizard({
-                      step: "player",
-                      shot: wizard.shot,
-                      made: true,
-                    })
-                  }
-                >
-                  {th.made}
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() =>
-                    setWizard({
-                      step: "player",
-                      shot: wizard.shot,
-                      made: false,
-                    })
-                  }
-                >
-                  {th.missed}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {wizard.step === "player" && (
-            <div className="card">
-              <h2>{th.selectPlayer}</h2>
-              <ul className="players">
-                {onCourt.map((p) => (
-                  <li key={p.id}>
-                    <button
-                      type="button"
-                      className="btn block"
-                      onClick={() =>
-                        void persistShot(wizard.shot, wizard.made, p.id)
-                      }
-                    >
-                      {p.name} · ฟาล์ว {p.fouls}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           <div className="card">
             <h2>อีเวนต์ล่าสุด ({events.length})</h2>
             <ol className="log">
               {[...events]
                 .reverse()
-                .slice(0, 8)
+                .slice(0, 10)
                 .map((e) => (
-                  <li key={e.eventId}>
-                    {e.type} · {String((e.payload as { made?: boolean }).made)}
-                  </li>
+                  <li key={e.eventId}>{eventLabel(e)}</li>
                 ))}
             </ol>
             <div className="row">
@@ -369,6 +704,372 @@ export function App() {
           </div>
         </aside>
       </main>
+
+      {wizard.step !== "idle" && (
+        <div className="wizard-overlay">
+          <button
+            type="button"
+            className="wizard-backdrop"
+            aria-label={th.cancel}
+            onClick={() => setWizard({ step: "idle" })}
+          />
+          <div className="wizard-sheet">
+            {wizard.step === "outcome" && (
+              <>
+                <p>
+                  {wizard.shot.isThree ? "3PT" : "2PT"} @ (
+                  {wizard.shot.x.toFixed(2)}, {wizard.shot.y.toFixed(2)})
+                </p>
+                <div className="row">
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() =>
+                      openWizard({
+                        step: "player",
+                        shot: wizard.shot,
+                        made: true,
+                      })
+                    }
+                  >
+                    {th.made}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() =>
+                      openWizard({
+                        step: "player",
+                        shot: wizard.shot,
+                        made: false,
+                      })
+                    }
+                  >
+                    {th.missed}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setWizard({ step: "idle" })}
+                  >
+                    {th.cancel}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {wizard.step === "player" && (
+              <>
+                <h2>{th.selectPlayer}</h2>
+                <PlayerPickGrid
+                  players={onCourt}
+                  onPick={(id) => {
+                    if (wizard.made) {
+                      openWizard({
+                        step: "assist",
+                        shot: wizard.shot,
+                        playerId: id,
+                        shotEventId: "",
+                      });
+                    } else {
+                      void persistShotMissThen(wizard.shot, id);
+                    }
+                  }}
+                />
+              </>
+            )}
+
+            {wizard.step === "assist" && (
+              <>
+                <h2>{th.assistPrompt}</h2>
+                <button
+                  type="button"
+                  className="btn block"
+                  onClick={() =>
+                    void finishShotMade(wizard.shot, wizard.playerId, null)
+                  }
+                >
+                  {th.noAssist}
+                </button>
+                <PlayerPickGrid
+                  players={onCourt.filter((p) => p.id !== wizard.playerId)}
+                  onPick={(id) =>
+                    void finishShotMade(wizard.shot, wizard.playerId, id)
+                  }
+                />
+              </>
+            )}
+
+            {wizard.step === "afterMiss" && (
+              <>
+                <h2>{th.afterMiss}</h2>
+                <button
+                  type="button"
+                  className="btn block primary"
+                  onClick={() =>
+                    openWizard({
+                      step: "rebPlayer",
+                      kind: "OFFENSIVE",
+                      shotEventId: wizard.shotEventId,
+                    })
+                  }
+                >
+                  {th.oreb}
+                </button>
+                <button
+                  type="button"
+                  className="btn block"
+                  onClick={() => void recordTo(wizard.playerId)}
+                >
+                  {th.turnover}
+                </button>
+              </>
+            )}
+
+            {wizard.step === "rebPlayer" && (
+              <>
+                <h2>
+                  {th.selectRebPlayer} ({wizard.kind})
+                </h2>
+                <PlayerPickGrid
+                  players={onCourt}
+                  onPick={(id) =>
+                    void recordReb(wizard.kind, id, wizard.shotEventId)
+                  }
+                />
+              </>
+            )}
+
+            {wizard.step === "foulPlayer" && (
+              <>
+                <h2>{th.foulSelectPlayer}</h2>
+                <PlayerPickGrid
+                  players={onCourt}
+                  disabled={(p) => isPlayerFouledOut(p.fouls, FOUL_OUT)}
+                  onPick={(id) =>
+                    openWizard({ step: "foulKind", playerId: id })
+                  }
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setWizard({ step: "idle" })}
+                >
+                  {th.cancel}
+                </button>
+              </>
+            )}
+
+            {wizard.step === "foulKind" && (
+              <>
+                <h2>{th.foulSelectKind}</h2>
+                <div className="row">
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() =>
+                      void completeFoul(wizard.playerId, "PERSONAL")
+                    }
+                  >
+                    {th.foulPersonal}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() =>
+                      void completeFoul(wizard.playerId, "SHOOTING")
+                    }
+                  >
+                    {th.foulShooting}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setShowMoreFouls((v) => !v)}
+                  >
+                    {th.foulMore}
+                  </button>
+                </div>
+                {showMoreFouls && (
+                  <div className="row">
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() =>
+                        void completeFoul(wizard.playerId, "TECHNICAL")
+                      }
+                    >
+                      {th.foulTechnical}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() =>
+                        void completeFoul(wizard.playerId, "UNSPORTSMANLIKE")
+                      }
+                    >
+                      {th.foulUnsportsmanlike}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {wizard.step === "ftPlayer" && (
+              <>
+                <h2>{th.ftSelectPlayer}</h2>
+                <PlayerPickGrid
+                  players={onCourt}
+                  onPick={(id) =>
+                    openWizard({ step: "ftCount", playerId: id })
+                  }
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setWizard({ step: "idle" })}
+                >
+                  {th.cancel}
+                </button>
+              </>
+            )}
+
+            {wizard.step === "ftCount" && (
+              <>
+                <h2>{th.ftSelectCount}</h2>
+                <div className="row">
+                  {[1, 2, 3].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      className="btn primary"
+                      onClick={() =>
+                        openWizard({
+                          step: "ft",
+                          playerId: wizard.playerId,
+                          attemptNo: 1,
+                          ofAttempts: n,
+                        })
+                      }
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {wizard.step === "ft" && (
+              <>
+                <h2>{th.ftPrompt(wizard.attemptNo, wizard.ofAttempts)}</h2>
+                <div className="row">
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() => void recordFt(true)}
+                  >
+                    {th.made}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => void recordFt(false)}
+                  >
+                    {th.missed}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {wizard.step === "subOut" && (
+              <>
+                <h2>{th.subOut}</h2>
+                <PlayerPickGrid
+                  players={onCourt}
+                  onPick={(id) =>
+                    openWizard({ step: "subIn", playerOutId: id })
+                  }
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setWizard({ step: "idle" })}
+                >
+                  {th.cancel}
+                </button>
+              </>
+            )}
+
+            {wizard.step === "subIn" && (
+              <>
+                <h2>{th.subIn}</h2>
+                {bench.length === 0 && (
+                  <p className="muted">ไม่มีตัวสำรองในรายชื่อ</p>
+                )}
+                <PlayerPickGrid
+                  players={bench}
+                  disabled={(p) => isPlayerFouledOut(p.fouls, FOUL_OUT)}
+                  onPick={(id) => void doSub(wizard.playerOutId, id)}
+                />
+              </>
+            )}
+
+            {wizard.step === "steal" && (
+              <>
+                <h2>{th.selectSteal}</h2>
+                <PlayerPickGrid
+                  players={onCourt}
+                  onPick={(id) => {
+                    const h = tick();
+                    void appendAndRefresh(stlEvent(session, h, id)).then(() =>
+                      setWizard({ step: "idle" }),
+                    );
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setWizard({ step: "idle" })}
+                >
+                  {th.cancel}
+                </button>
+              </>
+            )}
+
+            {wizard.step === "block" && (
+              <>
+                <h2>{th.selectBlock}</h2>
+                <PlayerPickGrid
+                  players={onCourt}
+                  onPick={(id) => {
+                    const h = tick();
+                    void appendAndRefresh(blkEvent(session, h, id)).then(() =>
+                      setWizard({ step: "idle" }),
+                    );
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setWizard({ step: "idle" })}
+                >
+                  {th.cancel}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {syncMsg && (
+        <button
+          type="button"
+          className="toast"
+          onClick={() => setSyncMsg("")}
+        >
+          {syncMsg}
+        </button>
+      )}
     </div>
   );
 }

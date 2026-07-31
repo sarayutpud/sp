@@ -38,6 +38,10 @@ export function App() {
             <Route path="rosters" element={<RostersPage />} />
             <Route path="games" element={<GamesPage />} />
             <Route path="reports" element={<ReportsPage />} />
+            <Route
+              path="season"
+              element={<Navigate to="/reports?scope=season" replace />}
+            />
           </Route>
           <Route path="*" element={<Navigate to="/players" replace />} />
         </Routes>

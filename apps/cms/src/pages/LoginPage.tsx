@@ -5,7 +5,9 @@ import { supabase } from "../lib/supabase";
 
 export function LoginPage() {
   const { session, loading } = useAuth();
-  const [email, setEmail] = useState("sp@test.com");
+  const [email, setEmail] = useState(
+    import.meta.env.DEV ? "sp@test.com" : "",
+  );
   const [password, setPassword] = useState("");
   const [authMsg, setAuthMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,8 +36,9 @@ export function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <img className="login-logo" src="/sp-logo.png" alt="SP FITNESS" />
-        <h1>SP CMS</h1>
-        <p className="muted">เข้าสู่ระบบเพื่อจัดการผู้เล่นและดูรายงานสถิติ</p>
+        <p className="login-brand">SP FITNESS BANG SUE</p>
+        <h1>CMS</h1>
+        <p className="muted login-sub">เข้าสู่ระบบเพื่อจัดการผู้เล่นและดูรายงาน</p>
 
         <form className="auth" onSubmit={(e) => void onLogin(e)}>
           <label>
@@ -45,6 +48,7 @@ export function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="username"
             />
           </label>
           <label>
@@ -55,6 +59,7 @@ export function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
+              autoComplete="current-password"
             />
           </label>
           <button type="submit" className="btn primary block" disabled={busy}>

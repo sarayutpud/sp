@@ -143,22 +143,26 @@ export function PreGameScreen({ store, online, onStart }: Props) {
 
   const start = async () => {
     if (!selectedGame || selectedPlayers.size !== 5) return;
-    const onCourt = players
-      .filter((p) => selectedPlayers.has(p.id))
-      .map((p) => ({
-        id: p.id,
-        name: `${p.jerseyNumber} ${p.name}`,
-        fouls: 0,
-      }));
+    const toRow = (p: { id: string; name: string; jerseyNumber: string }) => ({
+      id: p.id,
+      name: p.name,
+      jerseyNumber: p.jerseyNumber,
+      fouls: 0,
+    });
+    const onCourt = players.filter((p) => selectedPlayers.has(p.id)).map(toRow);
+    const bench = players.filter((p) => !selectedPlayers.has(p.id)).map(toRow);
     const session: ActiveGameSession = {
       gameId: selectedGame.id,
       homeTeamId: selectedGame.homeTeamId,
       awayTeamId: selectedGame.awayTeamId,
+      ourTeamId: selectedGame.homeTeamId,
       competitionId: DEFAULT_COMPETITION_ID,
       label: `${selectedGame.homeName} vs ${selectedGame.awayName}`,
       onCourt,
+      bench,
       period: 1,
       homeAttackSide: "LEFT",
+      ourTeamFoulsPeriod: 0,
     };
     await saveSession(store, session);
     onStart(session);
@@ -277,6 +281,12 @@ export function PreGameScreen({ store, online, onStart }: Props) {
                 </ul>
                 {players.length === 0 && !busy && (
                   <p className="muted">{th.noPlayers}</p>
+                )}
+                {players.length > 5 && (
+                  <p className="muted">
+                    {th.benchCount(players.length - selectedPlayers.size)} ·{" "}
+                    {th.ourTeamOnly}
+                  </p>
                 )}
               </div>
             )}
