@@ -562,6 +562,10 @@ textarea {
 
 /* Buttons */
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
   border: 1.5px solid var(--line);
   background: #fff;
   color: var(--navy);
@@ -571,8 +575,16 @@ textarea {
   font: inherit;
   font-weight: 700;
   min-height: 42px;
+  text-decoration: none;
+  text-align: center;
+  line-height: 1.25;
+  white-space: nowrap;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s
     ease, box-shadow 0.15s ease;
+}
+
+a.btn:hover {
+  text-decoration: none;
 }
 
 .btn:hover:not(:disabled) {
@@ -713,15 +725,15 @@ textarea {
 }
 
 .public-link-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 0.5rem;
   align-items: stretch;
   margin-top: 0.65rem;
 }
 
 .public-link-input {
-  flex: 1 1 220px;
+  width: 100%;
   min-width: 0;
   font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
   font-size: 0.82rem;
@@ -730,6 +742,10 @@ textarea {
   border-radius: 10px;
   background: var(--panel-soft);
   color: var(--text);
+}
+
+.public-link-row .btn {
+  flex: none;
 }
 
 .public-report {
@@ -1090,6 +1106,34 @@ textarea {
   .shotchart-wrap {
     grid-template-columns: 1fr;
   }
+
+  .public-link-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .public-link-input {
+    grid-column: 1 / -1;
+  }
+
+  .public-link-row .btn {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .report-export-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .report-export-row .btn {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .report-export-row .muted {
+    grid-column: 1 / -1;
+  }
 }
 
 /* ------- Responsive / mobile web ------- */
@@ -1153,15 +1197,78 @@ textarea {
     align-items: stretch;
   }
 
-  .report-tabs {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    padding-bottom: 0.25rem;
-    -webkit-overflow-scrolling: touch;
+  .report-tabs,
+  .scope-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+    overflow: visible;
+    flex-wrap: unset;
+    padding-bottom: 0;
   }
 
-  .tab {
-    flex: none;
+  .scope-tabs {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tab,
+  .scope-tabs .tab {
+    flex: unset;
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+    padding: 0.55rem 0.65rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+  }
+
+  .public-link-row {
+    grid-template-columns: 1fr;
+  }
+
+  .public-link-row .btn,
+  .report-export-row .btn,
+  .row > .btn,
+  .empty-state .btn,
+  .panel > .btn,
+  .stack > .btn {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .report-export-row,
+  .row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+  }
+
+  .report-export-row .muted {
+    text-align: center;
+  }
+
+  .data-table .actions {
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 6.5rem;
+  }
+
+  .data-table .actions .btn {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .public-report-top {
+    flex-wrap: wrap;
+    padding: 0.75rem 0.9rem;
+  }
+
+  .public-report-top .btn {
+    width: 100%;
+  }
+
+  .public-tabs {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1336,4 +1443,9 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+  align-items: center;
+}
+
+.data-table .actions .btn {
+  flex: 1 1 auto;
 }
