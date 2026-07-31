@@ -48,6 +48,8 @@ export type ActiveGameSession = {
   scheduledAt?: string | null;
   label: string;
   teams: Record<TeamSide, TeamSession>;
+  /** Player ids on court at tip-off (for +/-). */
+  tipStarters: { HOME: string[]; AWAY: string[] };
   activeSide: TeamSide;
   period: number;
   homeAttackSide: BasketSide;
@@ -166,6 +168,14 @@ function normalizeSession(raw: ActiveGameSession): ActiveGameSession {
       },
     },
     activeSide: raw.activeSide === "AWAY" ? "AWAY" : "HOME",
+    tipStarters: {
+      HOME:
+        raw.tipStarters?.HOME ??
+        (teams.HOME?.onCourt ?? []).map((p) => p.id),
+      AWAY:
+        raw.tipStarters?.AWAY ??
+        (teams.AWAY?.onCourt ?? []).map((p) => p.id),
+    },
     periodStartHome: raw.periodStartHome ?? 0,
     periodStartAway: raw.periodStartAway ?? 0,
     completedPeriodScores: raw.completedPeriodScores ?? [],
@@ -313,11 +323,36 @@ export async function loadCachedGameRoster(
   }
 }
 
+export function sideForPlayer(
+  session: ActiveGameSession,
+  playerId: string,
+): "HOME" | "AWAY" | null {
+  for (const side of ["HOME", "AWAY"] as const) {
+    const team = session.teams[side];
+    if (
+      team.onCourt.some((p) => p.id === playerId) ||
+      team.bench.some((p) => p.id === playerId)
+    ) {
+      return side;
+    }
+  }
+  return null;
+}
+
+export function teamIdForSide(
+  session: ActiveGameSession,
+  side: "HOME" | "AWAY",
+): string {
+  return side === "HOME" ? session.homeTeamId : session.awayTeamId;
+}
+
 export function bumpPlayerFoul(
   session: ActiveGameSession,
   playerId: string,
+  sideHint?: "HOME" | "AWAY",
 ): ActiveGameSession {
-  const team = session.teams[session.activeSide];
+  const side = sideHint ?? sideForPlayer(session, playerId) ?? session.activeSide;
+  const team = session.teams[side];
   const onCourt = team.onCourt.map((p) =>
     p.id === playerId ? { ...p, fouls: p.fouls + 1 } : p,
   );
@@ -328,7 +363,7 @@ export function bumpPlayerFoul(
     ...session,
     teams: {
       ...session.teams,
-      [session.activeSide]: {
+      [side]: {
         onCourt,
         bench,
         foulsPeriod: team.foulsPeriod + 1,

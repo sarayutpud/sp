@@ -33,7 +33,7 @@ export function AppLayout() {
             <img className="app-logo" src="/sp-logo.png" alt="SP FITNESS" />
             <div className="app-brand-text">
               <strong>SP CMS</strong>
-              <span>ใบสถิติสองทีม · โค้ช</span>
+              <span>สองทีม · FIBA Box Score</span>
             </div>
           </div>
         </div>

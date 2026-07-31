@@ -13,7 +13,7 @@ import type {
 } from "./types";
 
 const GAME_SELECT =
-  "id,status,scheduled_at,competition_id,our_team_id,opponent_name,our_side,home_team_id,away_team_id";
+  "id,status,scheduled_at,competition_id,our_team_id,opponent_name,our_side,home_team_id,away_team_id,home_coach,away_coach,crew_chief,umpire";
 
 function resolveSides(input: {
   ourTeamId: string;
@@ -134,6 +134,10 @@ export async function createGame(input: {
   scheduled_at: string | null;
   status?: string;
   home_attack_side?: "LEFT" | "RIGHT";
+  home_coach?: string | null;
+  away_coach?: string | null;
+  crew_chief?: string | null;
+  umpire?: string | null;
 }): Promise<GameRow> {
   if (!input.opponent_team_id) throw new Error("เลือกทีมคู่แข่ง");
   if (input.opponent_team_id === input.our_team_id) {
@@ -164,6 +168,10 @@ export async function createGame(input: {
       ...sides,
       scheduled_at: input.scheduled_at,
       status: input.status ?? "scheduled",
+      home_coach: input.home_coach?.trim() || null,
+      away_coach: input.away_coach?.trim() || null,
+      crew_chief: input.crew_chief?.trim() || null,
+      umpire: input.umpire?.trim() || null,
     })
     .select(GAME_SELECT)
     .single();
@@ -209,6 +217,10 @@ export async function updateGame(
     our_side: OurSide;
     scheduled_at: string | null;
     our_team_id: string;
+    home_coach?: string | null;
+    away_coach?: string | null;
+    crew_chief?: string | null;
+    umpire?: string | null;
   },
 ) {
   if (!input.opponent_team_id) throw new Error("เลือกทีมคู่แข่ง");
@@ -234,6 +246,10 @@ export async function updateGame(
       scheduled_at: input.scheduled_at,
       our_team_id: input.our_team_id,
       ...sides,
+      home_coach: input.home_coach?.trim() || null,
+      away_coach: input.away_coach?.trim() || null,
+      crew_chief: input.crew_chief?.trim() || null,
+      umpire: input.umpire?.trim() || null,
     })
     .eq("id", id);
   if (error) throw error;

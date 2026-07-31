@@ -26,6 +26,9 @@ importers:
 
   apps/cms:
     dependencies:
+      '@sp/report-export':
+        specifier: workspace:*
+        version: link:../../packages/report-export
       '@sp/rules-engine':
         specifier: workspace:*
         version: link:../../packages/rules-engine
@@ -81,6 +84,9 @@ importers:
 
   apps/courtside:
     dependencies:
+      '@sp/report-export':
+        specifier: workspace:*
+        version: link:../../packages/report-export
       '@sp/rules-engine':
         specifier: workspace:*
         version: link:../../packages/rules-engine
@@ -145,6 +151,22 @@ importers:
       vite:
         specifier: ^6.0.6
         version: 6.4.3(@types/node@22.20.1)(tsx@4.23.1)
+
+  packages/report-export:
+    dependencies:
+      '@sp/rules-engine':
+        specifier: workspace:*
+        version: link:../rules-engine
+      exceljs:
+        specifier: ^4.4.0
+        version: 4.4.0
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.1)
 
   packages/rules-engine:
     dependencies:

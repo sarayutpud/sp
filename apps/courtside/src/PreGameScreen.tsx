@@ -201,6 +201,8 @@ export function PreGameScreen({ store, online, onStart }: Props) {
         .map(toRow),
       foulsPeriod: 0,
     });
+    const homeTeam = toTeam("HOME");
+    const awayTeam = toTeam("AWAY");
     const session: ActiveGameSession = {
       gameId: selectedGame.id,
       ourTeamId: selectedGame.ourTeamId,
@@ -215,7 +217,11 @@ export function PreGameScreen({ store, online, onStart }: Props) {
       competitionId: selectedGame.competitionId ?? DEFAULT_COMPETITION_ID,
       scheduledAt: selectedGame.scheduledAt,
       label: `${selectedGame.homeTeamName} vs ${selectedGame.awayTeamName}`,
-      teams: { HOME: toTeam("HOME"), AWAY: toTeam("AWAY") },
+      teams: { HOME: homeTeam, AWAY: awayTeam },
+      tipStarters: {
+        HOME: homeTeam.onCourt.map((p) => p.id),
+        AWAY: awayTeam.onCourt.map((p) => p.id),
+      },
       activeSide: selectedGame.ourSide,
       period: 1,
       homeAttackSide: "LEFT",
@@ -311,24 +317,22 @@ export function PreGameScreen({ store, online, onStart }: Props) {
             </label>
             <fieldset className="side-fieldset">
               <legend>{th.ourSide}</legend>
-              <label className="inline">
-                <input
-                  type="radio"
-                  name="ourSide"
-                  checked={ourSide === "HOME"}
-                  onChange={() => setOurSide("HOME")}
-                />
-                {th.sideHome}
-              </label>
-              <label className="inline">
-                <input
-                  type="radio"
-                  name="ourSide"
-                  checked={ourSide === "AWAY"}
-                  onChange={() => setOurSide("AWAY")}
-                />
-                {th.sideAway}
-              </label>
+              <div className="segment" role="group" aria-label={th.ourSide}>
+                <button
+                  type="button"
+                  className={ourSide === "HOME" ? "active" : ""}
+                  onClick={() => setOurSide("HOME")}
+                >
+                  {th.sideHome}
+                </button>
+                <button
+                  type="button"
+                  className={ourSide === "AWAY" ? "active" : ""}
+                  onClick={() => setOurSide("AWAY")}
+                >
+                  {th.sideAway}
+                </button>
+              </div>
             </fieldset>
             <button
               type="button"

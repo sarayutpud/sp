@@ -1,11 +1,13 @@
 import {
-  type MatchBoxScore,
   buildMatchBoxScore,
   fmtMadeAtt,
+  fmtPlusMinus,
   fmtReb,
+  fmtShotPct,
+  type MatchBoxScore,
 } from "@sp/rules-engine";
+import { writeFibaBoxScoreXlsx } from "@sp/report-export";
 import type { PlayByPlayEvent } from "@sp/shared-types";
-import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { ActiveGameSession } from "./game-session";
@@ -33,6 +35,8 @@ function buildBox(events: PlayByPlayEvent[], session: ActiveGameSession) {
       homeCode: session.homeTeamCode,
       awayCode: session.awayTeamCode,
       scheduledAt: session.scheduledAt,
+      homeStarters: session.tipStarters?.HOME,
+      awayStarters: session.tipStarters?.AWAY,
     },
     session.completedPeriodScores,
   );
@@ -42,93 +46,56 @@ function teamRows(box: MatchBoxScore, side: "home" | "away") {
   return box[side].players.map((p) => [
     p.no,
     p.name,
+    fmtMadeAtt(p.fg),
+    fmtShotPct(p.fg),
     fmtMadeAtt(p.fg2),
     fmtMadeAtt(p.fg3),
     fmtMadeAtt(p.ft),
     fmtReb(p.reb),
     p.ast,
+    p.to,
     p.st,
     p.blk,
-    p.to,
     p.pf,
+    p.fd,
+    fmtPlusMinus(p.plusMinus),
+    p.ef,
     p.pts,
   ]);
 }
 
-/** Fixed-column Excel template — do not rename sheets/columns lightly */
+const BOX_HEAD = [
+  "No",
+  "Name",
+  "FG",
+  "%",
+  "2PT",
+  "3PT",
+  "FT",
+  "REB",
+  "AS",
+  "TO",
+  "ST",
+  "BS",
+  "PF",
+  "FD",
+  "+/-",
+  "EF",
+  "PTS",
+];
+
+/** FIBA-style Excel for both teams (exam layout). */
 export async function exportGameExcel(
   events: PlayByPlayEvent[],
   session: ActiveGameSession,
 ): Promise<"saved" | "cancelled" | "empty" | { error: string }> {
   if (events.length === 0) return "empty";
   const boxScore = buildBox(events, session);
-  const wb = new ExcelJS.Workbook();
-  wb.creator = "SP Courtside";
-  const box = wb.addWorksheet("IYBC Match Box Score");
-  box.addRow(["IYBC MATCH BOX SCORE"]);
-  box.addRow([
-    `${boxScore.meta.homeName} ${boxScore.meta.finalHome} - ${boxScore.meta.finalAway} ${boxScore.meta.awayName}`,
-  ]);
-  box.addRow([
-    "Quarter",
-    ...boxScore.byQuarter.map((q) => `Q${q.period}`),
-    "Final",
-  ]);
-  box.addRow([
-    "Home",
-    ...boxScore.byQuarter.map((q) => q.home),
-    boxScore.meta.finalHome,
-  ]);
-  box.addRow([
-    "Away",
-    ...boxScore.byQuarter.map((q) => q.away),
-    boxScore.meta.finalAway,
-  ]);
-  for (const side of ["home", "away"] as const) {
-    box.addRow([]);
-    box.addRow([boxScore[side].name]);
-    box.addRow([
-      "No",
-      "Player",
-      "2PT",
-      "3PT",
-      "FT",
-      "REB O/D",
-      "AST",
-      "STL",
-      "BLK",
-      "TO",
-      "PF",
-      "PTS",
-    ]);
-    for (const row of teamRows(boxScore, side)) {
-      box.addRow(row);
-    }
-    const total = boxScore[side].teamTotals;
-    box.addRow([
-      "",
-      "TOTAL",
-      fmtMadeAtt(total.fg2),
-      fmtMadeAtt(total.fg3),
-      fmtMadeAtt(total.ft),
-      fmtReb(total.reb),
-      total.ast,
-      total.st,
-      total.blk,
-      total.to,
-      total.pf,
-      total.pts,
-    ]);
-  }
-  for (const column of box.columns) {
-    column.width = 14;
-  }
-
-  const buf = await wb.xlsx.writeBuffer();
+  const buf = await writeFibaBoxScoreXlsx(boxScore);
   const blob = new Blob([buf], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  return saveBlob(blob, `iybc-match-box-${session.gameId.slice(0, 8)}.xlsx`);
+  return saveBlob(blob, `fiba-box-${session.gameId.slice(0, 8)}.xlsx`);
 }
 
 export async function exportGamePdf(
@@ -138,53 +105,65 @@ export async function exportGamePdf(
   if (events.length === 0) return "empty";
   const box = buildBox(events, session);
   const pdf = new jsPDF({ orientation: "landscape" });
-  pdf.setFontSize(16);
-  pdf.text("IYBC MATCH BOX SCORE", 14, 14);
-  pdf.setFontSize(12);
+  pdf.setFontSize(14);
+  pdf.text("FIBA Box Score", 14, 12);
+  pdf.setFontSize(11);
   pdf.text(
-    `${box.meta.homeName} ${box.meta.finalHome} - ${box.meta.finalAway} ${box.meta.awayName}`,
+    `${box.meta.homeCode} ${box.meta.finalHome} - ${box.meta.finalAway} ${box.meta.awayCode}`,
     14,
-    22,
+    20,
   );
-  autoTable(pdf, {
-    startY: 28,
-    head: [["Quarter", ...box.byQuarter.map((q) => `Q${q.period}`), "Final"]],
-    body: [
-      ["Home", ...box.byQuarter.map((q) => q.home), box.meta.finalHome],
-      ["Away", ...box.byQuarter.map((q) => q.away), box.meta.finalAway],
-    ],
-  });
-  let y =
-    (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable
-      .finalY + 8;
-  for (const side of ["home", "away"] as const) {
-    pdf.text(box[side].name, 14, y);
+  pdf.setFontSize(8);
+  pdf.text(`${box.meta.homeName} vs ${box.meta.awayName}`, 14, 26);
+
+  let startY = 30;
+  if (box.byQuarter.length > 0) {
     autoTable(pdf, {
-      startY: y + 3,
+      startY,
       head: [
+        ["Team", ...box.byQuarter.map((q) => `Q${q.period}`), "Final"],
+      ],
+      body: [
         [
-          "No",
-          "Player",
-          "2PT",
-          "3PT",
-          "FT",
-          "REB O/D",
-          "AST",
-          "STL",
-          "BLK",
-          "TO",
-          "PF",
-          "PTS",
+          box.meta.homeCode,
+          ...box.byQuarter.map((q) => q.home),
+          box.meta.finalHome,
+        ],
+        [
+          box.meta.awayCode,
+          ...box.byQuarter.map((q) => q.away),
+          box.meta.finalAway,
         ],
       ],
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [15, 22, 84] },
+    });
+    startY =
+      (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable
+        .finalY + 6;
+  }
+
+  let y = startY;
+  for (const side of ["home", "away"] as const) {
+    const label = `${box[side].code} — ${box[side].name}${
+      box[side].coach ? ` · Coach ${box[side].coach}` : ""
+    }`;
+    pdf.setFontSize(10);
+    pdf.text(label, 14, y);
+    autoTable(pdf, {
+      startY: y + 2,
+      head: [BOX_HEAD],
       body: teamRows(box, side),
+      styles: { fontSize: 6.5 },
+      headStyles: { fillColor: [15, 22, 84], fontSize: 6.5 },
     });
     y =
       (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable
         .finalY + 8;
   }
+
   return saveBlob(
     pdf.output("blob"),
-    `iybc-match-box-${session.gameId.slice(0, 8)}.pdf`,
+    `fiba-box-${session.gameId.slice(0, 8)}.pdf`,
   );
 }

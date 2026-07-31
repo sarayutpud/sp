@@ -1,5 +1,7 @@
--- SP Basketball — baseline schema (already applied on production)
--- สำหรับโปรเจกต์ใหม่: รันไฟล์นี้ใน Supabase SQL Editor แล้วตามด้วย seed.sql
+-- SP Basketball — baseline schema (already applied on hosted)
+-- แหล่งความจริงของโครงสร้าง DB — คัดลอกไป migrations/20260101000000_baseline_schema.sql เมื่อแก้
+-- โปรเจกต์ใหม่บน hosted: รันไฟล์นี้ใน SQL Editor แล้วตามด้วย seed.sql
+-- Local CLI: supabase start / db reset ใช้สำเนาใน migrations/ + local_role_grants
 
 create extension if not exists "pgcrypto";
 
@@ -74,6 +76,10 @@ create table if not exists public.games (
   scheduled_at timestamptz,
   status text not null default 'scheduled',
   roster_locked boolean not null default false,
+  home_coach text,
+  away_coach text,
+  crew_chief text,
+  umpire text,
   created_at timestamptz not null default now(),
   check (home_team_id <> away_team_id)
 );

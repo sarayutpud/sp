@@ -11,6 +11,10 @@ export default defineConfig({
         __dirname,
         "../../packages/rules-engine/src/index.ts",
       ),
+      "@sp/report-export": resolve(
+        __dirname,
+        "../../packages/report-export/src/index.ts",
+      ),
       "@sp/shared-types": resolve(
         __dirname,
         "../../packages/shared-types/src/index.ts",

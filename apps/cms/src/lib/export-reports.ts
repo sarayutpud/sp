@@ -1,8 +1,11 @@
 import {
   type MatchBoxScore,
   fmtMadeAtt,
+  fmtPlusMinus,
   fmtReb,
+  fmtShotPct,
 } from "@sp/rules-engine";
+import { writeFibaBoxScoreXlsx } from "@sp/report-export";
 import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -20,16 +23,21 @@ function downloadBlob(blob: Blob, filename: string) {
 
 const PLAYER_HEADERS = [
   "#",
-  "Player",
+  "Name",
+  "FG",
+  "%",
   "2PT",
   "3PT",
   "FT",
-  "REB O/D",
-  "AST",
-  "ST",
-  "BLK",
+  "REB",
+  "AS",
   "TO",
+  "ST",
+  "BS",
   "PF",
+  "FD",
+  "+/-",
+  "EF",
   "PTS",
 ];
 
@@ -39,29 +47,39 @@ function playerRows(box: MatchBoxScore, side: "home" | "away") {
     ...team.players.map((p) => [
       p.no,
       p.name,
+      fmtMadeAtt(p.fg),
+      fmtShotPct(p.fg),
       fmtMadeAtt(p.fg2),
       fmtMadeAtt(p.fg3),
       fmtMadeAtt(p.ft),
       fmtReb(p.reb),
       p.ast,
+      p.to,
       p.st,
       p.blk,
-      p.to,
       p.pf,
+      p.fd,
+      fmtPlusMinus(p.plusMinus),
+      p.ef,
       p.pts,
     ]),
     [
       "",
-      "TEAM",
+      "Totals",
+      fmtMadeAtt(team.teamTotals.fg),
+      fmtShotPct(team.teamTotals.fg),
       fmtMadeAtt(team.teamTotals.fg2),
       fmtMadeAtt(team.teamTotals.fg3),
       fmtMadeAtt(team.teamTotals.ft),
       fmtReb(team.teamTotals.reb),
       team.teamTotals.ast,
+      team.teamTotals.to,
       team.teamTotals.st,
       team.teamTotals.blk,
-      team.teamTotals.to,
       team.teamTotals.pf,
+      team.teamTotals.fd,
+      "—",
+      "—",
       team.teamTotals.pts,
     ],
   ];
@@ -71,60 +89,7 @@ export async function downloadMatchBoxExcel(
   box: MatchBoxScore,
   filename: string,
 ) {
-  const wb = new ExcelJS.Workbook();
-  wb.creator = "SP CMS";
-  const match = wb.addWorksheet("Match");
-  match.addRow(["IYBC Match Box Score"]);
-  match.addRow([
-    `${box.meta.homeName} ${box.meta.finalHome} - ${box.meta.finalAway} ${box.meta.awayName}`,
-  ]);
-  match.addRow([
-    box.meta.tournament,
-    box.meta.date,
-    box.meta.tipOff,
-    box.meta.venue,
-    box.meta.gameNo,
-  ]);
-  match.addRow([]);
-  match.addRow([
-    "Team",
-    ...box.byQuarter.map((q) => `Q${q.period}`),
-    "Final",
-  ]);
-  match.addRow([
-    box.meta.homeCode,
-    ...box.byQuarter.map((q) => q.home),
-    box.meta.finalHome,
-  ]);
-  match.addRow([
-    box.meta.awayCode,
-    ...box.byQuarter.map((q) => q.away),
-    box.meta.finalAway,
-  ]);
-
-  for (const side of ["home", "away"] as const) {
-    const ws = wb.addWorksheet(box[side].code || side);
-    ws.addRow(PLAYER_HEADERS);
-    for (const row of playerRows(box, side)) ws.addRow(row);
-  }
-
-  if (box.advanced) {
-    const adv = wb.addWorksheet("Advanced");
-    adv.addRow(["Stat", box.meta.homeCode, box.meta.awayCode]);
-    const rows: [string, { home: number; away: number } | undefined][] = [
-      ["Points from TO", box.advanced.pointsFromTurnovers],
-      ["Points in paint", box.advanced.pointsInThePaint],
-      ["2nd chance", box.advanced.secondChancePoints],
-      ["Fast break", box.advanced.fastBreakPoints],
-      ["Bench points", box.advanced.benchPoints],
-      ["Biggest lead", box.advanced.biggestLead],
-    ];
-    for (const [label, v] of rows) {
-      if (v) adv.addRow([label, v.home, v.away]);
-    }
-  }
-
-  const buf = await wb.xlsx.writeBuffer();
+  const buf = await writeFibaBoxScoreXlsx(box);
   downloadBlob(
     new Blob([buf], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -139,7 +104,7 @@ export async function downloadMatchBoxPdf(
 ) {
   const doc = new jsPDF({ orientation: "landscape" });
   doc.setFontSize(14);
-  doc.text("IYBC Match Box Score", 14, 14);
+  doc.text("FIBA Box Score", 14, 14);
   doc.setFontSize(11);
   doc.text(
     `${box.meta.homeCode} ${box.meta.finalHome} - ${box.meta.finalAway} ${box.meta.awayCode}`,
@@ -148,10 +113,19 @@ export async function downloadMatchBoxPdf(
   );
   doc.setFontSize(9);
   doc.text(`${box.meta.homeName} vs ${box.meta.awayName}`, 14, 28);
+  const staff = [
+    box.meta.homeCoach ? `HC ${box.meta.homeCoach}` : null,
+    box.meta.awayCoach ? `AC ${box.meta.awayCoach}` : null,
+    box.meta.crewChief ? `CC ${box.meta.crewChief}` : null,
+    box.meta.umpire ? `Ump ${box.meta.umpire}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  if (staff) doc.text(staff, 14, 33);
 
   if (box.byQuarter.length > 0) {
     autoTable(doc, {
-      startY: 32,
+      startY: staff ? 36 : 32,
       head: [
         [
           "Team",
@@ -180,14 +154,17 @@ export async function downloadMatchBoxPdf(
       ?.finalY ?? 40;
 
   for (const side of ["home", "away"] as const) {
-    doc.setFontSize(11);
-    doc.text(`${box[side].code} — ${box[side].name}`, 14, y + 8);
+    doc.setFontSize(10);
+    const title = `${box[side].code} — ${box[side].name}${
+      box[side].coach ? ` · Coach ${box[side].coach}` : ""
+    }`;
+    doc.text(title, 14, y + 8);
     autoTable(doc, {
       startY: y + 10,
       head: [PLAYER_HEADERS],
       body: playerRows(box, side).map((r) => r.map(String)),
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [15, 22, 84] },
+      styles: { fontSize: 6.5 },
+      headStyles: { fillColor: [15, 22, 84], fontSize: 6.5 },
     });
     y =
       (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable

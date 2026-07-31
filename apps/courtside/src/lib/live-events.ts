@@ -44,10 +44,12 @@ export function shotEvent(
   playerId: string,
   flags: { countsAsFga: boolean; andOne: boolean },
   assistedByPlayerId?: string | null,
+  teamId?: string | null,
 ): PlayByPlayEvent {
   return baseEvent(session, hlc, {
     type: "SHOT",
     playerId,
+    teamId: teamId === undefined ? undefined : teamId,
     payload: {
       x: shot.x,
       y: shot.y,
@@ -67,11 +69,28 @@ export function foulEvent(
   hlc: Hlc,
   playerId: string,
   kind: FoulKind,
+  teamId?: string | null,
 ): PlayByPlayEvent {
   return baseEvent(session, hlc, {
     type: "FOUL",
     playerId,
+    teamId: teamId === undefined ? undefined : teamId,
     payload: { kind },
+  });
+}
+
+export function foulDrawnEvent(
+  session: ActiveGameSession,
+  hlc: Hlc,
+  playerId: string,
+  teamId: string,
+  relatedFoulEventId: string,
+): PlayByPlayEvent {
+  return baseEvent(session, hlc, {
+    type: "FOUL_DRAWN",
+    playerId,
+    teamId,
+    payload: { relatedFoulEventId },
   });
 }
 
@@ -82,10 +101,12 @@ export function ftEvent(
   made: boolean,
   attemptNo: number,
   ofAttempts: number,
+  teamId?: string | null,
 ): PlayByPlayEvent {
   return baseEvent(session, hlc, {
     type: "FT",
     playerId,
+    teamId: teamId === undefined ? undefined : teamId,
     payload: { made, attemptNo, ofAttempts },
   });
 }
@@ -96,10 +117,12 @@ export function rebEvent(
   playerId: string,
   kind: ReboundKind,
   relatedShotEventId?: string,
+  teamId?: string | null,
 ): PlayByPlayEvent {
   return baseEvent(session, hlc, {
     type: "REB",
     playerId,
+    teamId: teamId === undefined ? undefined : teamId,
     payload: { kind, relatedShotEventId: relatedShotEventId ?? null },
   });
 }
@@ -108,10 +131,12 @@ export function toEvent(
   session: ActiveGameSession,
   hlc: Hlc,
   playerId: string | null,
+  teamId?: string | null,
 ): PlayByPlayEvent {
   return baseEvent(session, hlc, {
     type: "TO",
     playerId,
+    teamId: teamId === undefined ? undefined : teamId,
     payload: { kind: "DEAD" },
   });
 }
@@ -120,10 +145,12 @@ export function astEvent(
   session: ActiveGameSession,
   hlc: Hlc,
   playerId: string,
+  teamId?: string | null,
 ): PlayByPlayEvent {
   return baseEvent(session, hlc, {
     type: "AST",
     playerId,
+    teamId: teamId === undefined ? undefined : teamId,
     payload: {},
   });
 }
@@ -132,10 +159,12 @@ export function stlEvent(
   session: ActiveGameSession,
   hlc: Hlc,
   playerId: string,
+  teamId?: string | null,
 ): PlayByPlayEvent {
   return baseEvent(session, hlc, {
     type: "STL",
     playerId,
+    teamId: teamId === undefined ? undefined : teamId,
     payload: {},
   });
 }
@@ -144,10 +173,12 @@ export function blkEvent(
   session: ActiveGameSession,
   hlc: Hlc,
   playerId: string,
+  teamId?: string | null,
 ): PlayByPlayEvent {
   return baseEvent(session, hlc, {
     type: "BLK",
     playerId,
+    teamId: teamId === undefined ? undefined : teamId,
     payload: {},
   });
 }

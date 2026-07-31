@@ -2,33 +2,57 @@ import {
   type MatchBoxScore,
   type TeamBoxScore,
   fmtMadeAtt,
+  fmtPlusMinus,
   fmtReb,
+  fmtShotPct,
 } from "@sp/rules-engine";
+
+function shotCell(madeAtt: { made: number; att: number }) {
+  const pct = fmtShotPct(madeAtt);
+  return (
+    <td className="shot-cell">
+      <span>{fmtMadeAtt(madeAtt)}</span>
+      {pct !== "—" && <small className="shot-pct">{pct}%</small>}
+    </td>
+  );
+}
 
 function TeamTable({ team, tone }: { team: TeamBoxScore; tone: "home" | "away" }) {
   return (
     <div className={`match-box-team tone-${tone}`}>
       <div className="match-box-team-head">
         <span className="match-box-code">{team.code}</span>
-        <h3>{team.name}</h3>
-        <strong className="match-box-team-pts">{team.teamTotals.pts}</strong>
+        <div className="match-box-team-title">
+          <h3>{team.name}</h3>
+          {team.coach ? (
+            <p className="muted match-box-coach">โค้ช: {team.coach}</p>
+          ) : null}
+        </div>
+        <strong className="match-box-team-pts" title="คะแนนรวมทีม">
+          {team.teamTotals.pts}
+        </strong>
       </div>
+      <p className="match-box-scroll-hint muted">เลื่อนซ้าย–ขวาเพื่อดูคอลัมน์ครบ</p>
       <div className="table-scroll">
-        <table className="data-table wrap-cells sticky-name mobile-priority match-box-table">
+        <table className="data-table wrap-cells sticky-name match-box-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>ผู้เล่น</th>
-              <th>2PT</th>
-              <th>3PT</th>
-              <th>FT</th>
-              <th>REB</th>
-              <th className="hide-sm">AST</th>
-              <th className="hide-sm">ST</th>
-              <th className="hide-sm">BLK</th>
-              <th className="hide-sm">TO</th>
-              <th className="hide-sm">PF</th>
-              <th>PTS</th>
+              <th title="เบอร์">#</th>
+              <th>ชื่อ</th>
+              <th title="Field Goals Made/Attempted">FG</th>
+              <th title="2 Points">2PT</th>
+              <th title="3 Points">3PT</th>
+              <th title="Free Throws">FT</th>
+              <th title="รีบาวด์ รุก/รับ (OR/DR)">REB</th>
+              <th title="Assists">AS</th>
+              <th title="Turnovers">TO</th>
+              <th title="Steals">ST</th>
+              <th title="Blocks">BS</th>
+              <th title="Personal Fouls">PF</th>
+              <th title="Fouls Drawn">FD</th>
+              <th title="Plus/Minus">+/-</th>
+              <th title="Efficiency">EF</th>
+              <th title="Points">PTS</th>
             </tr>
           </thead>
           <tbody>
@@ -36,15 +60,21 @@ function TeamTable({ team, tone }: { team: TeamBoxScore; tone: "home" | "away" }
               <tr key={p.playerId ?? `${p.no}-${p.name}`}>
                 <td className="num">{p.no}</td>
                 <td className="player-name">{p.name}</td>
-                <td>{fmtMadeAtt(p.fg2)}</td>
-                <td>{fmtMadeAtt(p.fg3)}</td>
-                <td>{fmtMadeAtt(p.ft)}</td>
-                <td>{fmtReb(p.reb)}</td>
-                <td className="hide-sm">{p.ast}</td>
-                <td className="hide-sm">{p.st}</td>
-                <td className="hide-sm">{p.blk}</td>
-                <td className="hide-sm">{p.to}</td>
-                <td className="hide-sm">{p.pf}</td>
+                {shotCell(p.fg)}
+                {shotCell(p.fg2)}
+                {shotCell(p.fg3)}
+                {shotCell(p.ft)}
+                <td title={`OR ${p.reb.off} · DR ${p.reb.def} · TOT ${p.reb.tot}`}>
+                  {fmtReb(p.reb)}
+                </td>
+                <td>{p.ast}</td>
+                <td>{p.to}</td>
+                <td>{p.st}</td>
+                <td>{p.blk}</td>
+                <td>{p.pf}</td>
+                <td>{p.fd}</td>
+                <td>{fmtPlusMinus(p.plusMinus)}</td>
+                <td>{p.ef}</td>
                 <td className="pts">
                   <strong>{p.pts}</strong>
                 </td>
@@ -52,8 +82,8 @@ function TeamTable({ team, tone }: { team: TeamBoxScore; tone: "home" | "away" }
             ))}
             {team.players.length === 0 && (
               <tr>
-                <td colSpan={12} className="muted">
-                  ยังไม่มีสถิติผู้เล่นฝั่งนี้
+                <td colSpan={16} className="muted">
+                  ยังไม่มีสถิติฝั่งนี้ — บันทึกใน Courtside แล้วซิงก์ก่อน
                 </td>
               </tr>
             )}
@@ -62,15 +92,19 @@ function TeamTable({ team, tone }: { team: TeamBoxScore; tone: "home" | "away" }
               <td>
                 <strong>รวมทีม</strong>
               </td>
-              <td>{fmtMadeAtt(team.teamTotals.fg2)}</td>
-              <td>{fmtMadeAtt(team.teamTotals.fg3)}</td>
-              <td>{fmtMadeAtt(team.teamTotals.ft)}</td>
+              {shotCell(team.teamTotals.fg)}
+              {shotCell(team.teamTotals.fg2)}
+              {shotCell(team.teamTotals.fg3)}
+              {shotCell(team.teamTotals.ft)}
               <td>{fmtReb(team.teamTotals.reb)}</td>
-              <td className="hide-sm">{team.teamTotals.ast}</td>
-              <td className="hide-sm">{team.teamTotals.st}</td>
-              <td className="hide-sm">{team.teamTotals.blk}</td>
-              <td className="hide-sm">{team.teamTotals.to}</td>
-              <td className="hide-sm">{team.teamTotals.pf}</td>
+              <td>{team.teamTotals.ast}</td>
+              <td>{team.teamTotals.to}</td>
+              <td>{team.teamTotals.st}</td>
+              <td>{team.teamTotals.blk}</td>
+              <td>{team.teamTotals.pf}</td>
+              <td>{team.teamTotals.fd}</td>
+              <td className="muted">—</td>
+              <td className="muted">—</td>
               <td className="pts">
                 <strong>{team.teamTotals.pts}</strong>
               </td>
@@ -84,9 +118,20 @@ function TeamTable({ team, tone }: { team: TeamBoxScore; tone: "home" | "away" }
 
 export function MatchBoxView({ box }: { box: MatchBoxScore }) {
   const { meta, byQuarter, advanced } = box;
+  const hasAdvanced =
+    advanced &&
+    Object.values(advanced).some((v) => v != null);
+
   return (
     <div className="match-box-view">
       <header className="match-box-scoreboard">
+        <div className="match-box-brand">
+          <img src="/sp-logo.png" alt="SP FITNESS" className="match-box-logo" />
+          <div>
+            <span className="match-box-brand-title">FIBA Box Score</span>
+            <p className="match-box-brand-sub muted">ใบสถิตินัด · สองทีม</p>
+          </div>
+        </div>
         {meta.tournament && (
           <p className="match-box-tournament">{meta.tournament}</p>
         )}
@@ -94,6 +139,9 @@ export function MatchBoxView({ box }: { box: MatchBoxScore }) {
           <div className="match-box-side home">
             <span className="match-box-code">{meta.homeCode}</span>
             <span className="match-box-side-name">{meta.homeName}</span>
+            {meta.homeCoach && (
+              <span className="muted match-box-coach">โค้ช: {meta.homeCoach}</span>
+            )}
           </div>
           <div className="match-box-final" aria-label="สกอร์สุดท้าย">
             <span>{meta.finalHome}</span>
@@ -103,6 +151,9 @@ export function MatchBoxView({ box }: { box: MatchBoxScore }) {
           <div className="match-box-side away">
             <span className="match-box-code">{meta.awayCode}</span>
             <span className="match-box-side-name">{meta.awayName}</span>
+            {meta.awayCoach && (
+              <span className="muted match-box-coach">โค้ช: {meta.awayCoach}</span>
+            )}
           </div>
         </div>
         <p className="match-box-meta muted">
@@ -110,7 +161,9 @@ export function MatchBoxView({ box }: { box: MatchBoxScore }) {
             meta.date,
             meta.tipOff ? `เริ่ม ${meta.tipOff}` : null,
             meta.venue,
-            meta.gameNo ? `Game ${meta.gameNo}` : null,
+            meta.gameNo ? `เกม ${meta.gameNo}` : null,
+            meta.crewChief ? `Crew Chief: ${meta.crewChief}` : null,
+            meta.umpire ? `Umpire: ${meta.umpire}` : null,
           ]
             .filter(Boolean)
             .join(" · ")}
@@ -119,6 +172,7 @@ export function MatchBoxView({ box }: { box: MatchBoxScore }) {
 
       {byQuarter.length > 0 && (
         <div className="quarter-strip" role="table" aria-label="สกอร์รายควอเตอร์">
+          <p className="quarter-strip-title">สกอร์รายควอเตอร์</p>
           <div className="quarter-strip-head" role="row">
             <span role="columnheader">ทีม</span>
             {byQuarter.map((q) => (
@@ -153,12 +207,14 @@ export function MatchBoxView({ box }: { box: MatchBoxScore }) {
         </div>
       )}
 
+      <p className="match-box-section-label">ตารางผู้เล่น · ทีมเหย้า</p>
       <TeamTable team={box.home} tone="home" />
+      <p className="match-box-section-label">ตารางผู้เล่น · ทีมเยือน</p>
       <TeamTable team={box.away} tone="away" />
 
-      {advanced && (
+      {hasAdvanced && (
         <div className="match-box-advanced">
-          <h3>สถิติเปรียบเทียบ</h3>
+          <h3>สถิติเปรียบเทียบทีม</h3>
           <div className="adv-grid">
             {(
               [
@@ -187,6 +243,18 @@ export function MatchBoxView({ box }: { box: MatchBoxScore }) {
           </div>
         </div>
       )}
+
+      <footer className="match-box-legend">
+        <strong>คำอธิบายคอลัมน์</strong>
+        <p>
+          FG/2PT/3PT/FT = เข้า/พยายาม (และ %) · REB = รุก/รับ · AS แอสซิสต์ · TO
+          เทิร์นโอเวอร์ · ST สตีล · BS บล็อก · PF ฟาล์ว · FD ถูกฟาล์ว · +/- คะแนนตอนอยู่สนาม ·
+          EF ประสิทธิภาพ · PTS คะแนน · นาทีเล่น (Min) ยังไม่บันทึกในระบบ
+        </p>
+        <p className="muted">
+          ต้องการใบใกล้ฟอร์มพิมพ์มากที่สุด → กดส่งออก <strong>Excel</strong>
+        </p>
+      </footer>
     </div>
   );
 }

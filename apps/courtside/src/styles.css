@@ -12,6 +12,10 @@
   --accent: var(--yellow);
   --ok: #3ddc97;
   --danger: var(--red);
+  --home: #4fc3f7;
+  --away: #ff8a65;
+  --home-text: #b3e5fc;
+  --away-text: #ffccbc;
   font-family: "Be Vietnam Pro", "Sarabun", "Bahnschrift", "Segoe UI", sans-serif;
   color: var(--text);
   background: radial-gradient(
@@ -835,12 +839,32 @@ body {
   padding: 0 0.25rem;
 }
 
-.side-fieldset .inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-right: 1rem;
+.segment {
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--line);
+}
+
+.segment button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 10px;
   cursor: pointer;
+  min-height: 36px;
+}
+
+.segment button.active {
+  background: var(--yellow);
+  color: #111;
 }
 
 .pregame-roster {
@@ -925,3 +949,55 @@ body {
   font-weight: 600;
   opacity: 0.9;
 }
+
+.live-side.home {
+  border-color: var(--home);
+}
+.live-side.away {
+  border-color: var(--away);
+}
+.live-side.home.active {
+  box-shadow: inset 0 0 0 2px var(--home);
+}
+.live-side.away.active {
+  box-shadow: inset 0 0 0 2px var(--away);
+}
+
+.chip.tone-home {
+  border-color: var(--home);
+  color: var(--home-text, var(--text));
+}
+.chip.tone-away {
+  border-color: var(--away);
+  color: var(--away-text, var(--text));
+}
+
+.dual-team-pick {
+  display: grid;
+  gap: 0.75rem;
+}
+.dual-team-block {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.55rem;
+}
+.dual-team-block.tone-home {
+  border-color: var(--home);
+  background: color-mix(in srgb, var(--home) 12%, transparent);
+}
+.dual-team-block.tone-away {
+  border-color: var(--away);
+  background: color-mix(in srgb, var(--away) 12%, transparent);
+}
+.dual-team-label {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.player-chip.tone-home {
+  border-color: var(--home);
+}
+.player-chip.tone-away {
+  border-color: var(--away);
+}
+

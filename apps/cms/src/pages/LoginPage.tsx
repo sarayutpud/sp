@@ -38,7 +38,9 @@ export function LoginPage() {
         <img className="login-logo" src="/sp-logo.png" alt="SP FITNESS" />
         <p className="login-brand">SP FITNESS BANG SUE</p>
         <h1>CMS</h1>
-        <p className="muted login-sub">เข้าสู่ระบบเพื่อจัดการผู้เล่นและดูรายงาน</p>
+        <p className="muted login-sub">
+          จัดการผู้เล่นสองทีม · แมตช์ · ใบสถิติ FIBA
+        </p>
 
         <form className="auth" onSubmit={(e) => void onLogin(e)}>
           <label>

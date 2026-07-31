@@ -1,4 +1,4 @@
--- Seed data + default CMS user — run after schema.sql
+-- Seed data + default CMS user — run after schema.sql (or via supabase db reset / pnpm seed)
 -- หรือใช้: pnpm seed (ต้องมี SUPABASE_SERVICE_ROLE_KEY)
 
 insert into public.organizations (id, name)

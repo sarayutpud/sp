@@ -13,6 +13,7 @@ import {
   fmtPct,
 } from "../lib/coach-reports";
 import {
+  fetchGameRosters,
   fetchGames,
   fetchPbp,
   fetchPeriodScores,
@@ -82,6 +83,11 @@ export function ReportsPage() {
   const allPlayers = useQuery({
     queryKey: ["players-all"],
     queryFn: () => fetchPlayers(),
+    enabled: !!selectedGameId,
+  });
+  const gameRosters = useQuery({
+    queryKey: ["game-rosters", selectedGameId],
+    queryFn: () => fetchGameRosters(selectedGameId!),
     enabled: !!selectedGameId,
   });
 
@@ -154,23 +160,39 @@ export function ReportsPage() {
       ),
     [playerLines, teamZones, teamMap, activeTeamId],
   );
-  const matchBox = useMemo(
-    () =>
-      selectedGame && allPlayers.data && teams.data
-        ? buildCmsMatchBoxScore({
-            game: selectedGame,
-            events: pbp.data ?? [],
-            players: allPlayers.data,
-            teams: teams.data,
-            periodScores: (periodScores.data ?? []).map((score) => ({
-              period: score.period,
-              homePoints: score.home_points,
-              awayPoints: score.away_points,
-            })),
-          })
-        : null,
-    [selectedGame, allPlayers.data, teams.data, pbp.data, periodScores.data],
-  );
+  const matchBox = useMemo(() => {
+    if (!selectedGame || !allPlayers.data || !teams.data) return null;
+    const homeStarters = (gameRosters.data ?? [])
+      .filter(
+        (r) => r.team_id === selectedGame.home_team_id && r.is_starter,
+      )
+      .map((r) => r.player_id);
+    const awayStarters = (gameRosters.data ?? [])
+      .filter(
+        (r) => r.team_id === selectedGame.away_team_id && r.is_starter,
+      )
+      .map((r) => r.player_id);
+    return buildCmsMatchBoxScore({
+      game: selectedGame,
+      events: pbp.data ?? [],
+      players: allPlayers.data,
+      teams: teams.data,
+      periodScores: (periodScores.data ?? []).map((score) => ({
+        period: score.period,
+        homePoints: score.home_points,
+        awayPoints: score.away_points,
+      })),
+      homeStarters,
+      awayStarters,
+    });
+  }, [
+    selectedGame,
+    allPlayers.data,
+    teams.data,
+    pbp.data,
+    periodScores.data,
+    gameRosters.data,
+  ]);
   const hasEvents = (pbp.data?.length ?? 0) > 0;
   const hasBoxData =
     !!matchBox &&
@@ -423,7 +445,7 @@ export function ReportsPage() {
                           )
                         }
                       >
-                        Excel
+                        Excel (ใกล้ฟอร์ม)
                       </button>
                       <button
                         type="button"
@@ -455,6 +477,10 @@ export function ReportsPage() {
                         CSV
                       </button>
                     </div>
+                    <p className="muted report-note">
+                      หน้าจออ่านง่าย · Excel จัดคอลัมน์แบบฟอร์ม FIBA (สองตารางทีม ·
+                      FG% · FD · +/- · EF)
+                    </p>
                     <MatchBoxView box={matchBox} />
                   </section>
                 )}

@@ -4,7 +4,7 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $AppDir = Join-Path $RepoRoot "apps\courtside"
 $OutDir = Join-Path $RepoRoot "releases\windows"
-$Version = "0.1.3"
+$Version = "0.1.4"
 
 # Prefer in-repo cargo target (avoid Cursor sandbox CARGO_TARGET_DIR)
 $env:CARGO_TARGET_DIR = Join-Path $AppDir "src-tauri\target"

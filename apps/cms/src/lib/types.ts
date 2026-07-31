@@ -31,6 +31,10 @@ export type GameRow = {
   our_side: OurSide;
   home_team_id: string;
   away_team_id: string;
+  home_coach: string | null;
+  away_coach: string | null;
+  crew_chief: string | null;
+  umpire: string | null;
 };
 
 export type GameRosterRow = {

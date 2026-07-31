@@ -36,14 +36,25 @@ export function GamesPage() {
     toLocalInputValue(new Date(Date.now() + 2 * 60 * 60 * 1000)),
   );
   const [attackSide, setAttackSide] = useState<"LEFT" | "RIGHT">("LEFT");
+  const [homeCoach, setHomeCoach] = useState("");
+  const [awayCoach, setAwayCoach] = useState("");
+  const [crewChief, setCrewChief] = useState("");
+  const [umpire, setUmpire] = useState("");
   const [msg, setMsg] = useState("");
   const [rosterGameId, setRosterGameId] = useState<string | null>(null);
   const [editGameId, setEditGameId] = useState<string | null>(null);
   const [editOpponentTeamId, setEditOpponentTeamId] = useState("");
   const [editSide, setEditSide] = useState<OurSide>("HOME");
   const [editScheduled, setEditScheduled] = useState("");
+  const [editHomeCoach, setEditHomeCoach] = useState("");
+  const [editAwayCoach, setEditAwayCoach] = useState("");
+  const [editCrewChief, setEditCrewChief] = useState("");
+  const [editUmpire, setEditUmpire] = useState("");
   const [dressedIds, setDressedIds] = useState<Set<string>>(new Set());
   const [starterIds, setStarterIds] = useState<Set<string>>(new Set());
+  const [rosterTeamScope, setRosterTeamScope] = useState<"our" | "opponent">(
+    "our",
+  );
 
   const teams = useQuery({ queryKey: ["teams"], queryFn: fetchTeams });
   const competitions = useQuery({
@@ -59,6 +70,21 @@ export function GamesPage() {
   const rosterGame = games.data?.find((g) => g.id === rosterGameId);
   const editGame = games.data?.find((g) => g.id === editGameId);
 
+  const rosterTeamId = useMemo(() => {
+    if (!rosterGame) return "";
+    if (rosterTeamScope === "our") return rosterGame.our_team_id;
+    return rosterGame.our_side === "HOME"
+      ? rosterGame.away_team_id
+      : rosterGame.home_team_id;
+  }, [rosterGame, rosterTeamScope]);
+
+  const rosterOpponentTeamId = useMemo(() => {
+    if (!rosterGame) return "";
+    return rosterGame.our_side === "HOME"
+      ? rosterGame.away_team_id
+      : rosterGame.home_team_id;
+  }, [rosterGame]);
+
   const teamMap = useMemo(
     () => new Map((teams.data ?? []).map((t) => [t.id, t.name])),
     [teams.data],
@@ -70,9 +96,9 @@ export function GamesPage() {
   );
 
   const squad = useQuery({
-    queryKey: ["players", rosterGame?.our_team_id],
-    queryFn: () => fetchPlayers(rosterGame!.our_team_id),
-    enabled: !!rosterGame?.our_team_id,
+    queryKey: ["players", rosterTeamId],
+    queryFn: () => fetchPlayers(rosterTeamId),
+    enabled: !!rosterTeamId,
   });
 
   const gameRoster = useQuery({
@@ -82,14 +108,14 @@ export function GamesPage() {
   });
 
   useEffect(() => {
-    if (!rosterGameId || !squad.data) return;
-    const existing = gameRoster.data;
-    if (existing && existing.length > 0) {
+    if (!rosterGameId || !squad.data || !rosterTeamId) return;
+    const existing = (gameRoster.data ?? []).filter(
+      (r) => r.team_id === rosterTeamId,
+    );
+    if (existing.length > 0) {
       setDressedIds(new Set(existing.map((r) => r.player_id)));
       setStarterIds(
-        new Set(
-          existing.filter((r) => r.is_starter).map((r) => r.player_id),
-        ),
+        new Set(existing.filter((r) => r.is_starter).map((r) => r.player_id)),
       );
     } else if (squad.data.length > 0) {
       setDressedIds(new Set(squad.data.map((p) => p.id)));
@@ -98,7 +124,7 @@ export function GamesPage() {
       setDressedIds(new Set());
       setStarterIds(new Set());
     }
-  }, [rosterGameId, squad.data, gameRoster.data]);
+  }, [rosterGameId, rosterTeamId, squad.data, gameRoster.data]);
 
   const createMut = useMutation({
     mutationFn: async () => {
@@ -111,11 +137,19 @@ export function GamesPage() {
         our_side: ourSide,
         scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
         home_attack_side: attackSide,
+        home_coach: homeCoach,
+        away_coach: awayCoach,
+        crew_chief: crewChief,
+        umpire,
       });
     },
     onSuccess: async () => {
       setMsg("สร้างแมตช์แล้ว — จัดรายชื่อลงแข่งด้านล่าง");
       setOpponentTeamId("");
+      setHomeCoach("");
+      setAwayCoach("");
+      setCrewChief("");
+      setUmpire("");
       await qc.invalidateQueries({ queryKey: ["games"] });
     },
     onError: (e: Error) => setMsg(e.message),
@@ -141,6 +175,10 @@ export function GamesPage() {
           ? new Date(editScheduled).toISOString()
           : null,
         our_team_id: editGame.our_team_id,
+        home_coach: editHomeCoach,
+        away_coach: editAwayCoach,
+        crew_chief: editCrewChief,
+        umpire: editUmpire,
       });
     },
     onSuccess: async () => {
@@ -153,19 +191,18 @@ export function GamesPage() {
 
   const rosterMut = useMutation({
     mutationFn: async () => {
-      if (!rosterGameId || !rosterGame) return;
+      if (!rosterGameId || !rosterGame || !rosterTeamId) return;
       const dressed = [...dressedIds];
       const starters = [...starterIds].filter((id) => dressedIds.has(id));
       if (starters.length > 5) throw new Error("ตัวจริงได้ไม่เกิน 5 คน");
-      return saveGameRoster(
-        rosterGameId,
-        rosterGame.our_team_id,
-        dressed,
-        starters,
-      );
+      return saveGameRoster(rosterGameId, rosterTeamId, dressed, starters);
     },
     onSuccess: async () => {
-      setMsg("บันทึกรายชื่อลงแข่งแล้ว — Courtside จะดึงหลังซิงก์");
+      setMsg(
+        rosterTeamScope === "our"
+          ? "บันทึกรายชื่อทีมเราแล้ว — สลับไปจัดทีมคู่แข่งได้"
+          : "บันทึกรายชื่อทีมคู่แข่งแล้ว — Courtside จะดึงหลังซิงก์",
+      );
       await qc.invalidateQueries({ queryKey: ["game-rosters", rosterGameId] });
     },
     onError: (e: Error) => setMsg(e.message),
@@ -207,6 +244,7 @@ export function GamesPage() {
 
   function openRoster(game: GameRow) {
     setRosterGameId(game.id);
+    setRosterTeamScope("our");
     setEditGameId(null);
     setMsg("");
   }
@@ -218,6 +256,10 @@ export function GamesPage() {
       game.our_side === "HOME" ? game.away_team_id : game.home_team_id,
     );
     setEditSide(game.our_side);
+    setEditHomeCoach(game.home_coach ?? "");
+    setEditAwayCoach(game.away_coach ?? "");
+    setEditCrewChief(game.crew_chief ?? "");
+    setEditUmpire(game.umpire ?? "");
     setEditScheduled(
       game.scheduled_at
         ? toLocalInputValue(new Date(game.scheduled_at))
@@ -280,7 +322,7 @@ export function GamesPage() {
                 onChange={(e) => setOpponentTeamId(e.target.value)}
                 required
               >
-                <option value="">— เลือกทีม —</option>
+                <option value="">— เลือกจากรายการทีม —</option>
                 {(teams.data ?? [])
                   .filter((t) => t.id !== activeOurTeamId)
                   .map((t) => (
@@ -290,6 +332,9 @@ export function GamesPage() {
                   ))}
               </select>
             </label>
+            <p className="muted report-note">
+              คู่แข่งต้องเป็นทีมในระบบ — เพิ่มทีม/ผู้เล่นก่อนถ้ายังไม่มีในรายการ
+            </p>
             <fieldset className="side-fieldset">
               <legend>ฝั่งเรา</legend>
               <div className="segment" role="group" aria-label="ฝั่งเรา">
@@ -328,6 +373,38 @@ export function GamesPage() {
                 <option value="LEFT">ซ้าย</option>
                 <option value="RIGHT">ขวา</option>
               </select>
+            </label>
+            <label>
+              โค้ชทีมเหย้า
+              <input
+                value={homeCoach}
+                onChange={(e) => setHomeCoach(e.target.value)}
+                placeholder="ไม่บังคับ"
+              />
+            </label>
+            <label>
+              โค้ชทีมเยือน
+              <input
+                value={awayCoach}
+                onChange={(e) => setAwayCoach(e.target.value)}
+                placeholder="ไม่บังคับ"
+              />
+            </label>
+            <label>
+              Crew Chief
+              <input
+                value={crewChief}
+                onChange={(e) => setCrewChief(e.target.value)}
+                placeholder="ไม่บังคับ"
+              />
+            </label>
+            <label>
+              Umpire
+              <input
+                value={umpire}
+                onChange={(e) => setUmpire(e.target.value)}
+                placeholder="ไม่บังคับ"
+              />
             </label>
             <button
               type="submit"
@@ -471,25 +548,21 @@ export function GamesPage() {
             </label>
             <fieldset className="side-fieldset">
               <legend>ฝั่งเรา</legend>
-              <div className="row">
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="edit_side"
-                    checked={editSide === "HOME"}
-                    onChange={() => setEditSide("HOME")}
-                  />
+              <div className="segment" role="group" aria-label="ฝั่งเรา">
+                <button
+                  type="button"
+                  className={editSide === "HOME" ? "active" : ""}
+                  onClick={() => setEditSide("HOME")}
+                >
                   เหย้า
-                </label>
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="edit_side"
-                    checked={editSide === "AWAY"}
-                    onChange={() => setEditSide("AWAY")}
-                  />
+                </button>
+                <button
+                  type="button"
+                  className={editSide === "AWAY" ? "active" : ""}
+                  onClick={() => setEditSide("AWAY")}
+                >
                   เยือน
-                </label>
+                </button>
               </div>
             </fieldset>
             <label>
@@ -498,6 +571,34 @@ export function GamesPage() {
                 type="datetime-local"
                 value={editScheduled}
                 onChange={(e) => setEditScheduled(e.target.value)}
+              />
+            </label>
+            <label>
+              โค้ชทีมเหย้า
+              <input
+                value={editHomeCoach}
+                onChange={(e) => setEditHomeCoach(e.target.value)}
+              />
+            </label>
+            <label>
+              โค้ชทีมเยือน
+              <input
+                value={editAwayCoach}
+                onChange={(e) => setEditAwayCoach(e.target.value)}
+              />
+            </label>
+            <label>
+              Crew Chief
+              <input
+                value={editCrewChief}
+                onChange={(e) => setEditCrewChief(e.target.value)}
+              />
+            </label>
+            <label>
+              Umpire
+              <input
+                value={editUmpire}
+                onChange={(e) => setEditUmpire(e.target.value)}
               />
             </label>
             <div className="row">
@@ -531,14 +632,35 @@ export function GamesPage() {
             )}
           </h2>
           <p className="muted report-note">
-            ติ๊กผู้เล่นที่ลงแข่ง · เลือกตัวจริง 5 คน · คนที่ไม่ใช่ตัวจริง =
-            ตัวสำรองในแอป Courtside
+            จัดรายชื่อทั้งสองทีม — ติ๊กผู้เล่นที่ลงแข่ง · ตัวจริงไม่เกิน 5 คนต่อทีม
           </p>
+          <div className="segment" role="group" aria-label="ทีมที่จัดรายชื่อ">
+            <button
+              type="button"
+              className={rosterTeamScope === "our" ? "active" : ""}
+              onClick={() => setRosterTeamScope("our")}
+            >
+              ทีมเรา
+              {teamMap.get(rosterGame.our_team_id)
+                ? ` · ${teamMap.get(rosterGame.our_team_id)}`
+                : ""}
+            </button>
+            <button
+              type="button"
+              className={rosterTeamScope === "opponent" ? "active" : ""}
+              onClick={() => setRosterTeamScope("opponent")}
+            >
+              คู่แข่ง
+              {teamMap.get(rosterOpponentTeamId)
+                ? ` · ${teamMap.get(rosterOpponentTeamId)}`
+                : ""}
+            </button>
+          </div>
 
           {squad.isLoading && <p>โหลดผู้เล่น…</p>}
           {squad.data?.length === 0 && !squad.isLoading && (
             <p className="muted">
-              ยังไม่มีผู้เล่นในทีม —{" "}
+              ยังไม่มีผู้เล่นในทีมนี้ —{" "}
               <Link to="/players">เพิ่มผู้เล่นก่อน</Link>
             </p>
           )}
@@ -548,6 +670,7 @@ export function GamesPage() {
               <p className="muted">
                 ตัวจริง: <strong>{starterCount}/5</strong> · ลงแข่ง:{" "}
                 {dressedIds.size} คน
+                {rosterTeamScope === "opponent" ? " (คู่แข่ง)" : " (ทีมเรา)"}
               </p>
               <div className="table-scroll">
                 <table className="data-table wrap-cells">

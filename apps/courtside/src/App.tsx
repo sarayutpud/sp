@@ -27,10 +27,13 @@ import {
   endPeriod,
   loadSession,
   saveSession,
+  sideForPlayer,
+  teamIdForSide,
 } from "./lib/game-session";
 import {
   astEvent,
   blkEvent,
+  foulDrawnEvent,
   foulEvent,
   ftEvent,
   nextHlc,
@@ -53,22 +56,35 @@ type Wizard =
       step: "assist";
       shot: ShotChartClick;
       playerId: string;
-      shotEventId: string;
+      side: "HOME" | "AWAY";
     }
   | {
       step: "afterMiss";
       shot: ShotChartClick;
       playerId: string;
+      side: "HOME" | "AWAY";
       shotEventId: string;
     }
-  | { step: "rebPlayer"; kind: ReboundKind; shotEventId: string }
+  | {
+      step: "rebPlayer";
+      kind: ReboundKind;
+      shotEventId: string;
+      side: "HOME" | "AWAY";
+    }
   | { step: "foulPlayer" }
-  | { step: "foulKind"; playerId: string }
+  | { step: "foulKind"; playerId: string; side: "HOME" | "AWAY" }
+  | {
+      step: "foulDrawn";
+      playerId: string;
+      side: "HOME" | "AWAY";
+      kind: FoulKind;
+    }
   | { step: "ftPlayer" }
-  | { step: "ftCount"; playerId: string }
+  | { step: "ftCount"; playerId: string; side: "HOME" | "AWAY" }
   | {
       step: "ft";
       playerId: string;
+      side: "HOME" | "AWAY";
       attemptNo: number;
       ofAttempts: number;
     }
@@ -127,13 +143,15 @@ function PlayerPickGrid({
   players,
   onPick,
   disabled,
+  tone,
 }: {
   players: OnCourtPlayer[];
   onPick: (id: string) => void;
   disabled?: (p: OnCourtPlayer) => boolean;
+  tone?: "home" | "away";
 }) {
   return (
-    <div className="player-pick-grid">
+    <div className={`player-pick-grid${tone ? ` tone-${tone}` : ""}`}>
       {players.map((p) => (
         <PlayerChipBtn
           key={p.id}
@@ -141,6 +159,7 @@ function PlayerPickGrid({
           name={p.name}
           fouls={p.fouls}
           disabled={disabled?.(p)}
+          className={tone ? `tone-${tone}` : undefined}
           onClick={() => onPick(p.id)}
         />
       ))}
@@ -148,15 +167,68 @@ function PlayerPickGrid({
   );
 }
 
-function eventLabel(e: PlayByPlayEvent): string {
+function DualTeamPick({
+  session,
+  onPick,
+  disabled,
+  onlySide,
+  excludePlayerId,
+}: {
+  session: ActiveGameSession;
+  onPick: (id: string, side: "HOME" | "AWAY") => void;
+  disabled?: (p: OnCourtPlayer) => boolean;
+  onlySide?: "HOME" | "AWAY";
+  excludePlayerId?: string;
+}) {
+  const sides = (onlySide ? [onlySide] : (["HOME", "AWAY"] as const)).filter(
+    Boolean,
+  ) as ("HOME" | "AWAY")[];
+  return (
+    <div className="dual-team-pick">
+      {sides.map((side) => {
+        const players = session.teams[side].onCourt.filter(
+          (p) => p.id !== excludePlayerId,
+        );
+        const tone = side === "HOME" ? "home" : "away";
+        const label =
+          side === "HOME"
+            ? `${session.homeTeamCode} · ${th.sideHome}`
+            : `${session.awayTeamCode} · ${th.sideAway}`;
+        return (
+          <div key={side} className={`dual-team-block tone-${tone}`}>
+            <p className="dual-team-label">{label}</p>
+            <PlayerPickGrid
+              players={players}
+              tone={tone}
+              disabled={disabled}
+              onPick={(id) => onPick(id, side)}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function eventLabel(e: PlayByPlayEvent, session: ActiveGameSession | null): string {
+  const code =
+    e.teamId && session
+      ? e.teamId === session.homeTeamId
+        ? session.homeTeamCode
+        : e.teamId === session.awayTeamId
+          ? session.awayTeamCode
+          : ""
+      : "";
+  const prefix = code ? `${code} ` : "";
   const p = e.payload as Record<string, unknown>;
-  if (e.type === "SHOT") return `SHOT ${p.made ? "เข้า" : "ไม่เข้า"}`;
+  if (e.type === "SHOT") return `${prefix}SHOT ${p.made ? "เข้า" : "ไม่เข้า"}`;
   if (e.type === "FT")
-    return `FT ${p.made ? "เข้า" : "ไม่เข้า"} ${p.attemptNo}/${p.ofAttempts}`;
-  if (e.type === "FOUL") return `FOUL ${String(p.kind ?? "")}`;
-  if (e.type === "REB") return `REB ${String(p.kind ?? "")}`;
-  if (e.type === "SUB") return "SUB";
-  return e.type;
+    return `${prefix}FT ${p.made ? "เข้า" : "ไม่เข้า"} ${p.attemptNo}/${p.ofAttempts}`;
+  if (e.type === "FOUL") return `${prefix}FOUL ${String(p.kind ?? "")}`;
+  if (e.type === "FOUL_DRAWN") return `${prefix}FD`;
+  if (e.type === "REB") return `${prefix}REB ${String(p.kind ?? "")}`;
+  if (e.type === "SUB") return `${prefix}SUB`;
+  return `${prefix}${e.type}`;
 }
 
 export function App() {
@@ -182,10 +254,6 @@ export function App() {
   }, [session]);
   const onCourt = session ? session.teams[session.activeSide].onCourt : [];
   const bench = session ? session.teams[session.activeSide].bench : [];
-  const activeTeam = session ? session.teams[session.activeSide] : null;
-  const inBonus = session
-    ? isInBonus(activeTeam?.foulsPeriod ?? 0, BONUS_AT)
-    : false;
   const scores = useMemo(() => {
     const scoreFor = (teamId: string) =>
       events.reduce((total, event) => {
@@ -338,9 +406,11 @@ export function App() {
   });
   useHotkeys("escape", () => setWizard({ step: "idle" }));
   useHotkeys("h", () => {
+    if (wizard.step !== "idle") return;
     if (session) void persistSession({ ...session, activeSide: "HOME" });
   });
   useHotkeys("a", () => {
+    if (wizard.step !== "idle") return;
     if (session) void persistSession({ ...session, activeSide: "AWAY" });
   });
   useHotkeys("1,2,3,4,5", (e) => {
@@ -361,8 +431,9 @@ export function App() {
   }, [hlc]);
 
   const finishShotMade = useCallback(
-    async (shot: ShotChartClick, playerId: string, assistId: string | null) => {
+    async (shot: ShotChartClick, playerId: string, side: "HOME" | "AWAY", assistId: string | null) => {
       if (!store || !session) return;
+      const teamId = teamIdForSide(session, side);
       const flags = shotAttemptFlags({ made: true, fouledOnShot: false });
       const h = tick();
       const event = shotEvent(
@@ -373,12 +444,13 @@ export function App() {
         playerId,
         flags,
         assistId,
+        teamId,
       );
       await store.appendEvent(event);
       if (assistId) {
         const h2 = nextHlc(h);
         setHlc(h2);
-        await store.appendEvent(astEvent(session, h2, assistId));
+        await store.appendEvent(astEvent(session, h2, assistId, teamId));
       }
       await refresh(store, session.gameId);
       setWizard({ step: "idle" });
@@ -387,17 +459,19 @@ export function App() {
   );
 
   const persistShotMissThen = useCallback(
-    async (shot: ShotChartClick, playerId: string) => {
+    async (shot: ShotChartClick, playerId: string, side: "HOME" | "AWAY") => {
       if (!store || !session) return;
+      const teamId = teamIdForSide(session, side);
       const flags = shotAttemptFlags({ made: false, fouledOnShot: false });
       const h = tick();
-      const event = shotEvent(session, h, shot, false, playerId, flags);
+      const event = shotEvent(session, h, shot, false, playerId, flags, null, teamId);
       await store.appendEvent(event);
       await refresh(store, session.gameId);
       setWizard({
         step: "afterMiss",
         shot,
         playerId,
+        side,
         shotEventId: event.eventId,
       });
     },
@@ -405,24 +479,42 @@ export function App() {
   );
 
   const completeFoul = useCallback(
-    async (playerId: string, kind: FoulKind) => {
+    async (
+      playerId: string,
+      side: "HOME" | "AWAY",
+      kind: FoulKind,
+      drawnPlayerId: string | null,
+    ) => {
       if (!store || !session) return;
+      const teamId = teamIdForSide(session, side);
       const h = tick();
-      const foul = foulEvent(session, h, playerId, kind);
-      const next = bumpPlayerFoul(session, playerId);
+      const foul = foulEvent(session, h, playerId, kind, teamId);
+      const next = bumpPlayerFoul(session, playerId, side);
       await store.appendEvent(foul);
+      if (drawnPlayerId) {
+        const drawnSide = side === "HOME" ? "AWAY" : "HOME";
+        const h2 = nextHlc(h);
+        setHlc(h2);
+        await store.appendEvent(
+          foulDrawnEvent(
+            session,
+            h2,
+            drawnPlayerId,
+            teamIdForSide(session, drawnSide),
+            foul.eventId,
+          ),
+        );
+      }
       await persistSession(next);
       await refresh(store, session.gameId);
       setWizard({ step: "idle" });
       const fouls =
-        next.teams[next.activeSide].onCourt.find((p) => p.id === playerId)
-          ?.fouls ??
-        next.teams[next.activeSide].bench.find((p) => p.id === playerId)
-          ?.fouls ??
+        next.teams[side].onCourt.find((p) => p.id === playerId)?.fouls ??
+        next.teams[side].bench.find((p) => p.id === playerId)?.fouls ??
         0;
       if (isPlayerFouledOut(fouls, FOUL_OUT)) {
         setSyncMsg(th.fouledOut);
-      } else if (isInBonus(next.teams[next.activeSide].foulsPeriod, BONUS_AT)) {
+      } else if (isInBonus(next.teams[side].foulsPeriod, BONUS_AT)) {
         setSyncMsg(th.bonus);
       }
     },
@@ -432,16 +524,25 @@ export function App() {
   const recordFt = useCallback(
     async (made: boolean) => {
       if (!store || !session || wizard.step !== "ft") return;
-      const { playerId, attemptNo, ofAttempts } = wizard;
+      const { playerId, side, attemptNo, ofAttempts } = wizard;
       const h = tick();
       await appendAndRefresh(
-        ftEvent(session, h, playerId, made, attemptNo, ofAttempts),
+        ftEvent(
+          session,
+          h,
+          playerId,
+          made,
+          attemptNo,
+          ofAttempts,
+          teamIdForSide(session, side),
+        ),
       );
       if (attemptNo >= ofAttempts) setWizard({ step: "idle" });
       else
         setWizard({
           step: "ft",
           playerId,
+          side,
           attemptNo: attemptNo + 1,
           ofAttempts,
         });
@@ -450,20 +551,43 @@ export function App() {
   );
 
   const recordReb = useCallback(
-    async (kind: ReboundKind, playerId: string, shotEventId: string) => {
+    async (
+      kind: ReboundKind,
+      playerId: string,
+      side: "HOME" | "AWAY",
+      shotEventId: string,
+    ) => {
       if (!store || !session) return;
       const h = tick();
-      await appendAndRefresh(rebEvent(session, h, playerId, kind, shotEventId));
+      await appendAndRefresh(
+        rebEvent(
+          session,
+          h,
+          playerId,
+          kind,
+          shotEventId,
+          teamIdForSide(session, side),
+        ),
+      );
       setWizard({ step: "idle" });
     },
     [store, session, tick, appendAndRefresh],
   );
 
   const recordTo = useCallback(
-    async (playerId: string | null) => {
+    async (playerId: string | null, side?: "HOME" | "AWAY") => {
       if (!store || !session) return;
       const h = tick();
-      await appendAndRefresh(toEvent(session, h, playerId));
+      const teamId =
+        side != null
+          ? teamIdForSide(session, side)
+          : playerId
+            ? teamIdForSide(
+                session,
+                sideForPlayer(session, playerId) ?? session.activeSide,
+              )
+            : undefined;
+      await appendAndRefresh(toEvent(session, h, playerId, teamId));
       setWizard({ step: "idle" });
     },
     [store, session, tick, appendAndRefresh],
@@ -513,7 +637,7 @@ export function App() {
       return;
     }
     if (result === "saved") {
-      setSyncMsg(th.exportSaved(`iybc-match-box-${gameId.slice(0, 8)}.xlsx`));
+      setSyncMsg(th.exportSaved(`fiba-box-${gameId.slice(0, 8)}.xlsx`));
     } else if (result === "cancelled") {
       setSyncMsg(th.exportCancelled);
     } else {
@@ -560,11 +684,21 @@ export function App() {
   });
   useHotkeys("r", () => {
     if (session && wizard.step === "idle")
-      openWizard({ step: "rebPlayer", kind: "DEFENSIVE", shotEventId: "" });
+      openWizard({
+        step: "rebPlayer",
+        kind: "DEFENSIVE",
+        shotEventId: "",
+        side: session.activeSide === "HOME" ? "AWAY" : "HOME",
+      });
   });
   useHotkeys("o", () => {
     if (session && wizard.step === "idle")
-      openWizard({ step: "rebPlayer", kind: "OFFENSIVE", shotEventId: "" });
+      openWizard({
+        step: "rebPlayer",
+        kind: "OFFENSIVE",
+        shotEventId: "",
+        side: session.activeSide,
+      });
   });
   useHotkeys("e", () => {
     if (session && wizard.step === "idle") void doEndPeriod();
@@ -640,7 +774,10 @@ export function App() {
         <button
           type="button"
           className={`live-side home ${session.activeSide === "HOME" ? "active" : ""}`}
-          onClick={() => void persistSession({ ...session, activeSide: "HOME" })}
+          onClick={() => {
+            if (wizard.step !== "idle") return;
+            void persistSession({ ...session, activeSide: "HOME" });
+          }}
         >
           <span className="live-code">{session.homeTeamCode}</span>
           <span className="live-name">{session.homeTeamName}</span>
@@ -648,9 +785,17 @@ export function App() {
         </button>
         <div className="live-mid">
           <span className="chip">{th.periodLabel(session.period)}</span>
-          <span className="chip">
-            {th.teamFouls(activeTeam?.foulsPeriod ?? 0)}
-            {inBonus ? ` · ${th.bonus}` : ""}
+          <span className="chip tone-home">
+            {session.homeTeamCode} {th.teamFouls(session.teams.HOME.foulsPeriod)}
+            {isInBonus(session.teams.HOME.foulsPeriod, BONUS_AT)
+              ? ` · ${th.bonus}`
+              : ""}
+          </span>
+          <span className="chip tone-away">
+            {session.awayTeamCode} {th.teamFouls(session.teams.AWAY.foulsPeriod)}
+            {isInBonus(session.teams.AWAY.foulsPeriod, BONUS_AT)
+              ? ` · ${th.bonus}`
+              : ""}
           </span>
           <span className="live-recording">
             {th.recordingSide}:{" "}
@@ -662,7 +807,10 @@ export function App() {
         <button
           type="button"
           className={`live-side away ${session.activeSide === "AWAY" ? "active" : ""}`}
-          onClick={() => void persistSession({ ...session, activeSide: "AWAY" })}
+          onClick={() => {
+            if (wizard.step !== "idle") return;
+            void persistSession({ ...session, activeSide: "AWAY" });
+          }}
         >
           <span className="live-code">{session.awayTeamCode}</span>
           <span className="live-name">{session.awayTeamName}</span>
@@ -738,6 +886,7 @@ export function App() {
               step: "rebPlayer",
               kind: "DEFENSIVE",
               shotEventId: "",
+              side: session.activeSide === "HOME" ? "AWAY" : "HOME",
             })
           }
         >
@@ -752,6 +901,7 @@ export function App() {
               step: "rebPlayer",
               kind: "OFFENSIVE",
               shotEventId: "",
+              side: session.activeSide,
             })
           }
         >
@@ -799,7 +949,7 @@ export function App() {
                 .reverse()
                 .slice(0, 10)
                 .map((e) => (
-                  <li key={e.eventId}>{eventLabel(e)}</li>
+                  <li key={e.eventId}>{eventLabel(e, session)}</li>
                 ))}
             </ol>
             <div className="row">
@@ -885,38 +1035,55 @@ export function App() {
               </>
             )}
 
-            {wizard.step === "player" && (
+            {wizard.step === "player" && session && (
               <>
-                <h2>{th.selectPlayer}</h2>
-                <PlayerPickGrid
-                  players={onCourt}
-                  onPick={(id) => {
+                <h2>{th.selectPlayerBoth}</h2>
+                <DualTeamPick
+                  session={session}
+                  onPick={(id, side) => {
                     if (wizard.made) {
-                      void finishShotMade(wizard.shot, id, null);
+                      openWizard({
+                        step: "assist",
+                        shot: wizard.shot,
+                        playerId: id,
+                        side,
+                      });
                     } else {
-                      void persistShotMissThen(wizard.shot, id);
+                      void persistShotMissThen(wizard.shot, id, side);
                     }
                   }}
                 />
               </>
             )}
 
-            {wizard.step === "assist" && (
+            {wizard.step === "assist" && session && (
               <>
                 <h2>{th.assistPrompt}</h2>
                 <button
                   type="button"
-                  className="btn block"
+                  className="btn block primary"
                   onClick={() =>
-                    void finishShotMade(wizard.shot, wizard.playerId, null)
+                    void finishShotMade(
+                      wizard.shot,
+                      wizard.playerId,
+                      wizard.side,
+                      null,
+                    )
                   }
                 >
                   {th.noAssist}
                 </button>
-                <PlayerPickGrid
-                  players={onCourt.filter((p) => p.id !== wizard.playerId)}
+                <DualTeamPick
+                  session={session}
+                  onlySide={wizard.side}
+                  excludePlayerId={wizard.playerId}
                   onPick={(id) =>
-                    void finishShotMade(wizard.shot, wizard.playerId, id)
+                    void finishShotMade(
+                      wizard.shot,
+                      wizard.playerId,
+                      wizard.side,
+                      id,
+                    )
                   }
                 />
               </>
@@ -933,6 +1100,7 @@ export function App() {
                       step: "rebPlayer",
                       kind: "OFFENSIVE",
                       shotEventId: wizard.shotEventId,
+                      side: wizard.side,
                     })
                   }
                 >
@@ -941,36 +1109,51 @@ export function App() {
                 <button
                   type="button"
                   className="btn block"
-                  onClick={() => void recordTo(wizard.playerId)}
+                  onClick={() =>
+                    openWizard({
+                      step: "rebPlayer",
+                      kind: "DEFENSIVE",
+                      shotEventId: wizard.shotEventId,
+                      side: wizard.side === "HOME" ? "AWAY" : "HOME",
+                    })
+                  }
+                >
+                  {th.dreb}
+                </button>
+                <button
+                  type="button"
+                  className="btn block"
+                  onClick={() => void recordTo(wizard.playerId, wizard.side)}
                 >
                   {th.turnover}
                 </button>
               </>
             )}
 
-            {wizard.step === "rebPlayer" && (
+            {wizard.step === "rebPlayer" && session && (
               <>
                 <h2>
                   {th.selectRebPlayer} —{" "}
                   {wizard.kind === "OFFENSIVE" ? th.oreb : th.dreb}
                 </h2>
-                <PlayerPickGrid
-                  players={onCourt}
-                  onPick={(id) =>
-                    void recordReb(wizard.kind, id, wizard.shotEventId)
+                <DualTeamPick
+                  session={session}
+                  onlySide={wizard.side}
+                  onPick={(id, side) =>
+                    void recordReb(wizard.kind, id, side, wizard.shotEventId)
                   }
                 />
               </>
             )}
 
-            {wizard.step === "foulPlayer" && (
+            {wizard.step === "foulPlayer" && session && (
               <>
                 <h2>{th.foulSelectPlayer}</h2>
-                <PlayerPickGrid
-                  players={onCourt}
+                <DualTeamPick
+                  session={session}
                   disabled={(p) => isPlayerFouledOut(p.fouls, FOUL_OUT)}
-                  onPick={(id) =>
-                    openWizard({ step: "foulKind", playerId: id })
+                  onPick={(id, side) =>
+                    openWizard({ step: "foulKind", playerId: id, side })
                   }
                 />
                 <button
@@ -991,7 +1174,12 @@ export function App() {
                     type="button"
                     className="btn primary"
                     onClick={() =>
-                      void completeFoul(wizard.playerId, "PERSONAL")
+                      openWizard({
+                        step: "foulDrawn",
+                        playerId: wizard.playerId,
+                        side: wizard.side,
+                        kind: "PERSONAL",
+                      })
                     }
                   >
                     {th.foulPersonal}
@@ -1000,7 +1188,12 @@ export function App() {
                     type="button"
                     className="btn primary"
                     onClick={() =>
-                      void completeFoul(wizard.playerId, "SHOOTING")
+                      openWizard({
+                        step: "foulDrawn",
+                        playerId: wizard.playerId,
+                        side: wizard.side,
+                        kind: "SHOOTING",
+                      })
                     }
                   >
                     {th.foulShooting}
@@ -1019,7 +1212,12 @@ export function App() {
                       type="button"
                       className="btn"
                       onClick={() =>
-                        void completeFoul(wizard.playerId, "TECHNICAL")
+                        void completeFoul(
+                          wizard.playerId,
+                          wizard.side,
+                          "TECHNICAL",
+                          null,
+                        )
                       }
                     >
                       {th.foulTechnical}
@@ -1028,7 +1226,12 @@ export function App() {
                       type="button"
                       className="btn"
                       onClick={() =>
-                        void completeFoul(wizard.playerId, "UNSPORTSMANLIKE")
+                        openWizard({
+                          step: "foulDrawn",
+                          playerId: wizard.playerId,
+                          side: wizard.side,
+                          kind: "UNSPORTSMANLIKE",
+                        })
                       }
                     >
                       {th.foulUnsportsmanlike}
@@ -1038,12 +1241,46 @@ export function App() {
               </>
             )}
 
-            {wizard.step === "ftPlayer" && (
+            {wizard.step === "foulDrawn" && session && (
+              <>
+                <h2>{th.foulSelectDrawn}</h2>
+                <button
+                  type="button"
+                  className="btn block"
+                  onClick={() =>
+                    void completeFoul(
+                      wizard.playerId,
+                      wizard.side,
+                      wizard.kind,
+                      null,
+                    )
+                  }
+                >
+                  {th.foulSkipDrawn}
+                </button>
+                <DualTeamPick
+                  session={session}
+                  onlySide={wizard.side === "HOME" ? "AWAY" : "HOME"}
+                  onPick={(id) =>
+                    void completeFoul(
+                      wizard.playerId,
+                      wizard.side,
+                      wizard.kind,
+                      id,
+                    )
+                  }
+                />
+              </>
+            )}
+
+            {wizard.step === "ftPlayer" && session && (
               <>
                 <h2>{th.ftSelectPlayer}</h2>
-                <PlayerPickGrid
-                  players={onCourt}
-                  onPick={(id) => openWizard({ step: "ftCount", playerId: id })}
+                <DualTeamPick
+                  session={session}
+                  onPick={(id, side) =>
+                    openWizard({ step: "ftCount", playerId: id, side })
+                  }
                 />
                 <button
                   type="button"
@@ -1068,6 +1305,7 @@ export function App() {
                         openWizard({
                           step: "ft",
                           playerId: wizard.playerId,
+                          side: wizard.side,
                           attemptNo: 1,
                           ofAttempts: n,
                         })
@@ -1135,16 +1373,16 @@ export function App() {
               </>
             )}
 
-            {wizard.step === "steal" && (
+            {wizard.step === "steal" && session && (
               <>
                 <h2>{th.selectSteal}</h2>
-                <PlayerPickGrid
-                  players={onCourt}
-                  onPick={(id) => {
+                <DualTeamPick
+                  session={session}
+                  onPick={(id, side) => {
                     const h = tick();
-                    void appendAndRefresh(stlEvent(session, h, id)).then(() =>
-                      setWizard({ step: "idle" }),
-                    );
+                    void appendAndRefresh(
+                      stlEvent(session, h, id, teamIdForSide(session, side)),
+                    ).then(() => setWizard({ step: "idle" }));
                   }}
                 />
                 <button
@@ -1157,16 +1395,16 @@ export function App() {
               </>
             )}
 
-            {wizard.step === "block" && (
+            {wizard.step === "block" && session && (
               <>
                 <h2>{th.selectBlock}</h2>
-                <PlayerPickGrid
-                  players={onCourt}
-                  onPick={(id) => {
+                <DualTeamPick
+                  session={session}
+                  onPick={(id, side) => {
                     const h = tick();
-                    void appendAndRefresh(blkEvent(session, h, id)).then(() =>
-                      setWizard({ step: "idle" }),
-                    );
+                    void appendAndRefresh(
+                      blkEvent(session, h, id, teamIdForSide(session, side)),
+                    ).then(() => setWizard({ step: "idle" }));
                   }}
                 />
                 <button

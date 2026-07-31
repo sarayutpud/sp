@@ -6,7 +6,7 @@
 pnpm + turbo monorepo (Node 22, pnpm 9.15.0). Two frontends and shared packages, all talking **directly to Supabase** (no separate API server):
 - `apps/cms` (`@sp/cms`) — Vite + React web app (competition CMS: players, rosters, coach reports). Primary runnable product in the cloud VM.
 - `apps/courtside` (`@sp/courtside`) — Tauri 2 desktop app (offline-first live stats). Full desktop run needs `tauri:dev` (Rust + platform webview; the app targets Windows). Its plain Vite web dev (`pnpm --filter @sp/courtside dev`) boots for UI work but Tauri-only plugins (SQLite) won't function in a browser.
-- `packages/*` — `shared-types` (zod), `rules-engine`, `sync-protocol`, `ui`.
+- `packages/*` — `shared-types` (zod), `rules-engine`, `sync-protocol`, `report-export`, `ui`.
 
 ### Standard commands (see root `package.json` / `turbo.json`)
 - `pnpm dev` / `pnpm build` / `pnpm test` / `pnpm typecheck` / `pnpm lint`
@@ -19,11 +19,11 @@ The apps require a Supabase backend. For the cloud VM there is a fully local opt
 
 - Docker is installed but there is **no systemd**; start the daemon once per session before using Supabase:
   `sudo nohup dockerd > /tmp/dockerd.log 2>&1 &` (daemon is preconfigured for `fuse-overlayfs` + `iptables-legacy`, and Docker 29 has `containerd-snapshotter` disabled in `/etc/docker/daemon.json` so fuse-overlayfs works).
-- Start the stack from repo root: `supabase start` (API on `http://127.0.0.1:54321`, Studio on `54323`). Use `supabase status` to print keys, `supabase db reset` to re-apply migrations + seed.
-- `supabase/migrations/` contains a **baseline schema migration** (copy of `supabase/schema.sql`) plus a **local role-grants migration**. These exist so `supabase start` applies the schema before `supabase/seed.sql` runs, and so the `anon`/`authenticated` roles get the table grants that hosted Supabase provides by default (RLS still enforces access). Without them the CLI's auto-seed fails and tears the stack down. They only affect local CLI dev; the team deploys against an already-migrated hosted project.
+- Start the stack from repo root: `supabase start` (API on `http://127.0.0.1:54321`, Studio on `54323`). Use `supabase status` to print keys, `supabase db reset` to re-apply baseline + seed.
+- Hosted DB already has the final schema — **do not re-run incremental migrations**. Source of truth: `supabase/schema.sql`. For local CLI only, `supabase/migrations/` has a **baseline copy** of that file plus `local_role_grants` (so `supabase start` can seed). See `supabase/README.md`.
 - Seed creates a ready CMS login: **`sp@test.com` / `sptest`** plus demo teams/players/games.
-- Matches are **two-team**: `home_team_id` + `away_team_id` required; primary report is the IYBC Match Box Score. Purge games/stats only: `node scripts/purge-match-data.mjs --dry-run` then without `--dry-run` (needs service role). Apply migration `20260731120000_two_team_match_box.sql` on hosted before relying on period scores / roster `team_id`.
-- Courtside exports Match Box Score as Excel/PDF; CMS also exports box + zones/season Excel/PDF and shotchart PDF.
+- Matches are **two-team**: `home_team_id` + `away_team_id` required; primary report is the FIBA Box Score (both teams). Purge games/stats only: `node scripts/purge-match-data.mjs --dry-run` then without `--dry-run` (needs service role).
+- Courtside/CMS Excel box scores use `@sp/report-export`; CMS also exports zones/season Excel/PDF and shotchart PDF.
 
 ### Courtside Windows release artifacts
 Always copy installers/exe to **`D:\sp\releases\windows`** (see `releases/windows/README.md`).

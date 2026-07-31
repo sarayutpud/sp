@@ -47,6 +47,8 @@ export function buildCmsMatchBoxScore(input: {
   venue?: string;
   finalHome?: number;
   finalAway?: number;
+  homeStarters?: string[];
+  awayStarters?: string[];
 }): MatchBoxScore {
   const teamMap = new Map(input.teams.map((t) => [t.id, t]));
   const home = teamMap.get(input.game.home_team_id);
@@ -64,6 +66,12 @@ export function buildCmsMatchBoxScore(input: {
     scheduledAt: input.game.scheduled_at,
     finalHome: input.finalHome,
     finalAway: input.finalAway,
+    homeCoach: input.game.home_coach,
+    awayCoach: input.game.away_coach,
+    crewChief: input.game.crew_chief,
+    umpire: input.game.umpire,
+    homeStarters: input.homeStarters,
+    awayStarters: input.awayStarters,
   };
   return buildMatchBoxScore(
     toPlayByPlayEvents(input.game.id, input.events),
