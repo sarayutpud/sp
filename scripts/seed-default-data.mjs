@@ -241,7 +241,7 @@ async function main() {
         opponent_name: "Away Arrows",
         our_side: "HOME",
         home_team_id: SEED.homeTeamId,
-        away_team_id: null,
+        away_team_id: SEED.awayTeamId,
         scheduled_at: scheduledAt.toISOString(),
         status: "scheduled",
         roster_locked: false,
@@ -272,15 +272,25 @@ async function main() {
   }));
   await upsert(db, "on_court", onCourtRows, "game_id,team_id,slot");
 
-  const gameRosterRows = SEED.homePlayers.map((p, i) => {
-    const starterIndex = starters.findIndex((s) => s.id === p.id);
-    return {
+  const gameRosterRows = [
+    ...SEED.homePlayers.map((p) => {
+      const starterIndex = starters.findIndex((s) => s.id === p.id);
+      return {
+        game_id: SEED.gameId,
+        team_id: SEED.homeTeamId,
+        player_id: p.id,
+        is_starter: starterIndex >= 0,
+        starter_slot: starterIndex >= 0 ? starterIndex + 1 : null,
+      };
+    }),
+    ...SEED.awayPlayers.map((p, i) => ({
       game_id: SEED.gameId,
+      team_id: SEED.awayTeamId,
       player_id: p.id,
-      is_starter: starterIndex >= 0,
-      starter_slot: starterIndex >= 0 ? starterIndex + 1 : null,
-    };
-  });
+      is_starter: i < 5,
+      starter_slot: i < 5 ? i + 1 : null,
+    })),
+  ];
   await upsert(db, "game_rosters", gameRosterRows, "game_id,player_id");
 
   await upsert(

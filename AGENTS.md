@@ -22,6 +22,8 @@ The apps require a Supabase backend. For the cloud VM there is a fully local opt
 - Start the stack from repo root: `supabase start` (API on `http://127.0.0.1:54321`, Studio on `54323`). Use `supabase status` to print keys, `supabase db reset` to re-apply migrations + seed.
 - `supabase/migrations/` contains a **baseline schema migration** (copy of `supabase/schema.sql`) plus a **local role-grants migration**. These exist so `supabase start` applies the schema before `supabase/seed.sql` runs, and so the `anon`/`authenticated` roles get the table grants that hosted Supabase provides by default (RLS still enforces access). Without them the CLI's auto-seed fails and tears the stack down. They only affect local CLI dev; the team deploys against an already-migrated hosted project.
 - Seed creates a ready CMS login: **`sp@test.com` / `sptest`** plus demo teams/players/games.
+- Matches are **two-team**: `home_team_id` + `away_team_id` required; primary report is the IYBC Match Box Score. Purge games/stats only: `node scripts/purge-match-data.mjs --dry-run` then without `--dry-run` (needs service role). Apply migration `20260731120000_two_team_match_box.sql` on hosted before relying on period scores / roster `team_id`.
+- Courtside exports Match Box Score as Excel/PDF; CMS also exports box + zones/season Excel/PDF and shotchart PDF.
 
 ### Courtside Windows release artifacts
 Always copy installers/exe to **`D:\sp\releases\windows`** (see `releases/windows/README.md`).

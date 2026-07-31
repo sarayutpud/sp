@@ -69,13 +69,13 @@ create table if not exists public.games (
   our_team_id uuid not null references public.teams(id),
   opponent_name text not null,
   our_side text not null default 'HOME' check (our_side in ('HOME', 'AWAY')),
-  -- optional legacy mirrors (nullable): home when our_side=HOME, away when AWAY
-  home_team_id uuid references public.teams(id),
-  away_team_id uuid references public.teams(id),
+  home_team_id uuid not null references public.teams(id),
+  away_team_id uuid not null references public.teams(id),
   scheduled_at timestamptz,
   status text not null default 'scheduled',
   roster_locked boolean not null default false,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  check (home_team_id <> away_team_id)
 );
 
 create table if not exists public.game_officials (
@@ -109,14 +109,26 @@ create table if not exists public.on_court (
   unique (game_id, team_id, player_id)
 );
 
--- Dress list for a match (our team only): who travels + who starts
+-- Dress list for a match (both teams): who plays + who starts
 create table if not exists public.game_rosters (
   id uuid primary key default gen_random_uuid(),
   game_id uuid not null references public.games(id) on delete cascade,
+  team_id uuid not null references public.teams(id),
   player_id uuid not null references public.players(id),
   is_starter boolean not null default false,
   starter_slot int check (starter_slot is null or starter_slot between 1 and 5),
   unique (game_id, player_id)
+);
+
+create index if not exists game_rosters_game_team_idx
+  on public.game_rosters (game_id, team_id);
+
+create table if not exists public.game_period_scores (
+  game_id uuid not null references public.games(id) on delete cascade,
+  period int not null check (period >= 1),
+  home_points int not null default 0 check (home_points >= 0),
+  away_points int not null default 0 check (away_points >= 0),
+  primary key (game_id, period)
 );
 
 create table if not exists public.play_by_play (
@@ -188,6 +200,7 @@ alter table public.game_officials enable row level security;
 alter table public.game_states enable row level security;
 alter table public.on_court enable row level security;
 alter table public.game_rosters enable row level security;
+alter table public.game_period_scores enable row level security;
 alter table public.play_by_play enable row level security;
 alter table public.box_score_snapshots enable row level security;
 alter table public.device_registry enable row level security;
@@ -209,6 +222,7 @@ do $$ begin create policy "authenticated manage players" on public.players for a
 do $$ begin create policy "authenticated manage rosters" on public.rosters for all to authenticated using (true) with check (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "authenticated manage games" on public.games for all to authenticated using (true) with check (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "authenticated manage game_rosters" on public.game_rosters for all to authenticated using (true) with check (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "authenticated manage game_period_scores" on public.game_period_scores for all to authenticated using (true) with check (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "authenticated manage teams" on public.teams for all to authenticated using (true) with check (true); exception when duplicate_object then null; end $$;
 
 -- Courtside anon sync (read structure + push PBP)
@@ -222,5 +236,8 @@ do $$ begin create policy "anon update game_states" on public.game_states for up
 do $$ begin create policy "anon read teams" on public.teams for select to anon using (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "anon read players" on public.players for select to anon using (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "anon read game_rosters" on public.game_rosters for select to anon using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "anon read game_period_scores" on public.game_period_scores for select to anon using (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "anon insert game_period_scores" on public.game_period_scores for insert to anon with check (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "anon update game_period_scores" on public.game_period_scores for update to anon using (true) with check (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "anon read competitions" on public.competitions for select to anon using (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "anon read rulesets" on public.rulesets for select to anon using (true); exception when duplicate_object then null; end $$;

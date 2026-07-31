@@ -6,6 +6,7 @@ import type {
   GameRow,
   OurSide,
   PbpEvent,
+  PeriodScoreRow,
   Player,
   RosterRow,
   Team,
@@ -14,11 +15,16 @@ import type {
 const GAME_SELECT =
   "id,status,scheduled_at,competition_id,our_team_id,opponent_name,our_side,home_team_id,away_team_id";
 
-function legacySides(ourTeamId: string, ourSide: OurSide) {
-  return {
-    home_team_id: ourSide === "HOME" ? ourTeamId : null,
-    away_team_id: ourSide === "AWAY" ? ourTeamId : null,
-  };
+function resolveSides(input: {
+  ourTeamId: string;
+  opponentTeamId: string;
+  ourSide: OurSide;
+}) {
+  const home_team_id =
+    input.ourSide === "HOME" ? input.ourTeamId : input.opponentTeamId;
+  const away_team_id =
+    input.ourSide === "HOME" ? input.opponentTeamId : input.ourTeamId;
+  return { home_team_id, away_team_id };
 }
 
 export async function fetchTeams(): Promise<Team[]> {
@@ -122,15 +128,32 @@ export async function fetchGame(id: string): Promise<GameRow | null> {
 export async function createGame(input: {
   competition_id: string;
   our_team_id: string;
-  opponent_name: string;
+  opponent_team_id: string;
+  opponent_name?: string;
   our_side: OurSide;
   scheduled_at: string | null;
   status?: string;
   home_attack_side?: "LEFT" | "RIGHT";
 }): Promise<GameRow> {
-  const opponent = input.opponent_name.trim();
-  if (!opponent) throw new Error("ใส่ชื่อคู่แข่ง");
-  const sides = legacySides(input.our_team_id, input.our_side);
+  if (!input.opponent_team_id) throw new Error("เลือกทีมคู่แข่ง");
+  if (input.opponent_team_id === input.our_team_id) {
+    throw new Error("ทีมคู่แข่งต้องต่างจากทีมเรา");
+  }
+  const sides = resolveSides({
+    ourTeamId: input.our_team_id,
+    opponentTeamId: input.opponent_team_id,
+    ourSide: input.our_side,
+  });
+  const { data: oppTeam } = await supabase
+    .from("teams")
+    .select("name")
+    .eq("id", input.opponent_team_id)
+    .maybeSingle();
+  const opponent =
+    input.opponent_name?.trim() ||
+    (oppTeam as { name?: string } | null)?.name ||
+    "คู่แข่ง";
+
   const { data, error } = await supabase
     .from("games")
     .insert({
@@ -182,23 +205,35 @@ export async function updateTeam(
 export async function updateGame(
   id: string,
   input: {
-    opponent_name: string;
+    opponent_team_id: string;
     our_side: OurSide;
     scheduled_at: string | null;
-    our_team_id?: string;
+    our_team_id: string;
   },
 ) {
-  const opponent = input.opponent_name.trim();
-  if (!opponent) throw new Error("ใส่ชื่อคู่แข่ง");
-  const ourTeamId = input.our_team_id;
-  const sides = ourTeamId ? legacySides(ourTeamId, input.our_side) : {};
+  if (!input.opponent_team_id) throw new Error("เลือกทีมคู่แข่ง");
+  if (input.opponent_team_id === input.our_team_id) {
+    throw new Error("ทีมคู่แข่งต้องต่างจากทีมเรา");
+  }
+  const sides = resolveSides({
+    ourTeamId: input.our_team_id,
+    opponentTeamId: input.opponent_team_id,
+    ourSide: input.our_side,
+  });
+  const { data: oppTeam } = await supabase
+    .from("teams")
+    .select("name")
+    .eq("id", input.opponent_team_id)
+    .maybeSingle();
+  const opponent = (oppTeam as { name?: string } | null)?.name || "คู่แข่ง";
   const { error } = await supabase
     .from("games")
     .update({
       opponent_name: opponent,
       our_side: input.our_side,
       scheduled_at: input.scheduled_at,
-      ...(ourTeamId ? { our_team_id: ourTeamId, ...sides } : {}),
+      our_team_id: input.our_team_id,
+      ...sides,
     })
     .eq("id", id);
   if (error) throw error;
@@ -220,24 +255,26 @@ export async function fetchGameRosters(
 ): Promise<GameRosterRow[]> {
   const { data, error } = await supabase
     .from("game_rosters")
-    .select("id,game_id,player_id,is_starter,starter_slot")
+    .select("id,game_id,team_id,player_id,is_starter,starter_slot")
     .eq("game_id", gameId);
   if (error) throw error;
   return (data ?? []) as GameRosterRow[];
 }
 
-/** Replace dress list for a match. Pass starter player IDs (max 5); others are bench. */
+/** Replace dress list for one team in a match. */
 export async function saveGameRoster(
   gameId: string,
+  teamId: string,
   playerIds: string[],
   starterIds: string[],
 ) {
   const starters = starterIds.slice(0, 5);
   const starterSet = new Set(starters);
-  const rows = playerIds.map((playerId, i) => {
+  const rows = playerIds.map((playerId) => {
     const starterIndex = starters.indexOf(playerId);
     return {
       game_id: gameId,
+      team_id: teamId,
       player_id: playerId,
       is_starter: starterSet.has(playerId),
       starter_slot: starterIndex >= 0 ? starterIndex + 1 : null,
@@ -247,7 +284,8 @@ export async function saveGameRoster(
   const { error: delError } = await supabase
     .from("game_rosters")
     .delete()
-    .eq("game_id", gameId);
+    .eq("game_id", gameId)
+    .eq("team_id", teamId);
   if (delError) throw delError;
 
   if (rows.length === 0) return;
@@ -256,10 +294,22 @@ export async function saveGameRoster(
   if (error) throw error;
 }
 
+export async function fetchPeriodScores(
+  gameId: string,
+): Promise<PeriodScoreRow[]> {
+  const { data, error } = await supabase
+    .from("game_period_scores")
+    .select("game_id,period,home_points,away_points")
+    .eq("game_id", gameId)
+    .order("period");
+  if (error) throw error;
+  return (data ?? []) as PeriodScoreRow[];
+}
+
 export async function fetchPbp(gameId: string): Promise<PbpEvent[]> {
   const { data, error } = await supabase
     .from("play_by_play")
-    .select("event_id,game_id,player_id,team_id,type,payload")
+    .select("event_id,game_id,period,player_id,team_id,type,payload")
     .eq("game_id", gameId)
     .is("voided_at", null);
   if (error) throw error;

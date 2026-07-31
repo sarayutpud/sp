@@ -22,8 +22,8 @@ type GameRow = {
   opponent_name: string;
   our_side: OurSide;
   competition_id?: string;
-  home_team_id?: string | null;
-  away_team_id?: string | null;
+  home_team_id: string;
+  away_team_id: string;
 };
 
 export type RosterPlayer = {
@@ -58,13 +58,6 @@ function gameLabel(
   return `${match} · ${date}`;
 }
 
-function legacySides(ourTeamId: string, ourSide: OurSide) {
-  return {
-    home_team_id: ourSide === "HOME" ? ourTeamId : null,
-    away_team_id: ourSide === "AWAY" ? ourTeamId : null,
-  };
-}
-
 function toGameListItem(
   g: GameRow,
   teams: Map<string, TeamRow>,
@@ -72,7 +65,11 @@ function toGameListItem(
   const our = teams.get(g.our_team_id);
   if (!our) return null;
   const ourSide: OurSide = g.our_side === "AWAY" ? "AWAY" : "HOME";
-  const opponent = g.opponent_name || "คู่แข่ง";
+  const opponentTeamId = ourSide === "HOME" ? g.away_team_id : g.home_team_id;
+  const home = teams.get(g.home_team_id);
+  const away = teams.get(g.away_team_id);
+  if (!home || !away) return null;
+  const opponent = teams.get(opponentTeamId)?.name ?? g.opponent_name ?? "คู่แข่ง";
   return {
     id: g.id,
     status: g.status,
@@ -82,6 +79,12 @@ function toGameListItem(
     opponentName: opponent,
     ourSide,
     competitionId: g.competition_id,
+    homeTeamId: g.home_team_id,
+    awayTeamId: g.away_team_id,
+    homeTeamName: home.name,
+    awayTeamName: away.name,
+    homeTeamCode: home.short_name ?? home.name,
+    awayTeamCode: away.short_name ?? away.name,
     label: gameLabel(our.name, opponent, ourSide, g.scheduled_at),
   };
 }
@@ -124,12 +127,13 @@ async function pullPlayersFromWeb(teamId: string): Promise<RosterPlayer[]> {
 
 async function pullGameRosterFromWeb(
   gameId: string,
-  ourTeamId: string,
+  teamId: string,
 ): Promise<RosterPlayer[]> {
   const { data: rosterRows, error } = await supabase
     .from("game_rosters")
-    .select("player_id, is_starter, starter_slot")
+    .select("player_id, team_id, is_starter, starter_slot")
     .eq("game_id", gameId)
+    .eq("team_id", teamId)
     .order("starter_slot", { ascending: true, nullsFirst: false });
 
   if (error) throw error;
@@ -140,7 +144,7 @@ async function pullGameRosterFromWeb(
   }>;
 
   if (rows.length === 0) {
-    return pullPlayersFromWeb(ourTeamId);
+    return pullPlayersFromWeb(teamId);
   }
 
   const playerIds = rows.map((r) => r.player_id);
@@ -192,24 +196,35 @@ export async function fetchTeamsOnline(): Promise<TeamRow[]> {
 export async function createGameOnline(input: {
   competitionId?: string;
   ourTeamId: string;
-  opponentName: string;
+  opponentTeamId: string;
   ourSide: OurSide;
   scheduledAt?: string | null;
 }): Promise<GameListItem> {
-  const opponent = input.opponentName.trim();
-  if (!opponent) throw new Error("ใส่ชื่อคู่แข่ง");
+  if (!input.ourTeamId || !input.opponentTeamId) {
+    throw new Error("เลือกทั้งสองทีม");
+  }
+  if (input.ourTeamId === input.opponentTeamId) {
+    throw new Error("ทีมเราและคู่แข่งต้องเป็นคนละทีม");
+  }
   const competitionId = input.competitionId ?? DEFAULT_COMPETITION_ID;
   const scheduledAt = input.scheduledAt ?? new Date().toISOString();
-  const sides = legacySides(input.ourTeamId, input.ourSide);
+  const homeTeamId =
+    input.ourSide === "HOME" ? input.ourTeamId : input.opponentTeamId;
+  const awayTeamId =
+    input.ourSide === "AWAY" ? input.ourTeamId : input.opponentTeamId;
+  const teams = await fetchTeamsOnline();
+  const opponentName =
+    teams.find((team) => team.id === input.opponentTeamId)?.name ?? "คู่แข่ง";
 
   const { data, error } = await supabase
     .from("games")
     .insert({
       competition_id: competitionId,
       our_team_id: input.ourTeamId,
-      opponent_name: opponent,
+      opponent_name: opponentName,
       our_side: input.ourSide,
-      ...sides,
+      home_team_id: homeTeamId,
+      away_team_id: awayTeamId,
       scheduled_at: scheduledAt,
       status: "scheduled",
     })
@@ -225,7 +240,6 @@ export async function createGameOnline(input: {
     home_attack_side_period1: "LEFT",
   });
 
-  const teams = await fetchTeamsOnline();
   const teamMap = new Map(teams.map((t) => [t.id, t]));
   const item = toGameListItem(game, teamMap);
   if (!item) throw new Error("สร้างแมตช์แล้ว แต่โหลดชื่อทีมไม่สำเร็จ");
@@ -238,6 +252,8 @@ export async function ensureGameOnServer(input: {
   ourTeamId: string;
   opponentName: string;
   ourSide: OurSide;
+  homeTeamId: string;
+  awayTeamId: string;
   competitionId?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
@@ -249,14 +265,14 @@ export async function ensureGameOnServer(input: {
     if (error) return { ok: false, error: error.message };
     if (data?.id) return { ok: true };
 
-    const sides = legacySides(input.ourTeamId, input.ourSide);
     const { error: insertError } = await supabase.from("games").insert({
       id: input.gameId,
       competition_id: input.competitionId ?? DEFAULT_COMPETITION_ID,
       our_team_id: input.ourTeamId,
       opponent_name: input.opponentName || "คู่แข่ง",
       our_side: input.ourSide,
-      ...sides,
+      home_team_id: input.homeTeamId,
+      away_team_id: input.awayTeamId,
       scheduled_at: new Date().toISOString(),
       status: "live",
     });
@@ -298,7 +314,9 @@ export async function fetchGames(
   }
 
   const rows = (games ?? []) as GameRow[];
-  const teamIds = [...new Set(rows.map((g) => g.our_team_id))];
+  const teamIds = [
+    ...new Set(rows.flatMap((g) => [g.home_team_id, g.away_team_id])),
+  ];
 
   let teamMap = new Map<string, TeamRow>();
   if (teamIds.length > 0) {
@@ -318,9 +336,14 @@ export async function fetchGames(
   await Promise.all(
     list.map(async (g) => {
       try {
-        const players = await pullGameRosterFromWeb(g.id, g.ourTeamId);
+        const [homePlayers, awayPlayers] = await Promise.all([
+          pullGameRosterFromWeb(g.id, g.homeTeamId),
+          pullGameRosterFromWeb(g.id, g.awayTeamId),
+        ]);
+        const players = [...homePlayers, ...awayPlayers];
         await cacheGameRoster(store, g.id, players);
-        await cacheRoster(store, g.ourTeamId, players);
+        await cacheRoster(store, g.homeTeamId, homePlayers);
+        await cacheRoster(store, g.awayTeamId, awayPlayers);
       } catch {
         // keep existing cache
       }
@@ -343,8 +366,10 @@ export async function fetchGameRosterPlayers(
       return { players, fromCache: false };
     } catch {
       const cached = await loadCachedGameRoster(store, gameId);
-      if (cached && cached.players.length > 0) {
-        return { players: cached.players, fromCache: true };
+      const cachedPlayers =
+        cached?.players.filter((player) => player.teamId === ourTeamId) ?? [];
+      if (cachedPlayers.length > 0) {
+        return { players: cachedPlayers, fromCache: true };
       }
       const teamCached = await loadCachedRoster(store, ourTeamId);
       if (teamCached && teamCached.players.length > 0) {
@@ -355,8 +380,10 @@ export async function fetchGameRosterPlayers(
   }
 
   const cached = await loadCachedGameRoster(store, gameId);
-  if (cached && cached.players.length > 0) {
-    return { players: cached.players, fromCache: true };
+  const cachedPlayers =
+    cached?.players.filter((player) => player.teamId === ourTeamId) ?? [];
+  if (cachedPlayers.length > 0) {
+    return { players: cachedPlayers, fromCache: true };
   }
   const teamCached = await loadCachedRoster(store, ourTeamId);
   if (teamCached && teamCached.players.length > 0) {

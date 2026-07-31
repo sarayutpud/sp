@@ -10,6 +10,18 @@ export type OnCourtPlayer = {
   fouls: number;
 };
 
+export type TeamSide = "HOME" | "AWAY";
+export type TeamSession = {
+  onCourt: OnCourtPlayer[];
+  bench: OnCourtPlayer[];
+  foulsPeriod: number;
+};
+export type CompletedPeriodScore = {
+  period: number;
+  homePoints: number;
+  awayPoints: number;
+};
+
 function normalizePlayer(p: OnCourtPlayer): OnCourtPlayer {
   if (p.jerseyNumber) {
     return { ...p, jerseyNumber: String(p.jerseyNumber), name: p.name };
@@ -26,16 +38,22 @@ export type ActiveGameSession = {
   ourTeamId: string;
   opponentName: string;
   ourSide: OurSide;
-  /** @deprecated kept for old saves — prefer ourSide */
-  homeTeamId?: string;
-  awayTeamId?: string;
+  homeTeamId: string;
+  awayTeamId: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeTeamCode: string;
+  awayTeamCode: string;
   competitionId?: string;
+  scheduledAt?: string | null;
   label: string;
-  onCourt: OnCourtPlayer[];
-  bench: OnCourtPlayer[];
+  teams: Record<TeamSide, TeamSession>;
+  activeSide: TeamSide;
   period: number;
   homeAttackSide: BasketSide;
-  ourTeamFoulsPeriod: number;
+  periodStartHome: number;
+  periodStartAway: number;
+  completedPeriodScores: CompletedPeriodScore[];
 };
 
 export type GameListItem = {
@@ -46,6 +64,12 @@ export type GameListItem = {
   ourTeamName: string;
   opponentName: string;
   ourSide: OurSide;
+  homeTeamId: string;
+  awayTeamId: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeTeamCode: string;
+  awayTeamCode: string;
   label: string;
   competitionId?: string;
 };
@@ -92,14 +116,59 @@ function inferOurSide(raw: ActiveGameSession): OurSide {
 function normalizeSession(raw: ActiveGameSession): ActiveGameSession {
   const ourTeamId = raw.ourTeamId ?? raw.homeTeamId ?? "";
   const ourSide = inferOurSide({ ...raw, ourTeamId });
+  const homeTeamId =
+    raw.homeTeamId ?? (ourSide === "HOME" ? ourTeamId : (raw.awayTeamId ?? ""));
+  const awayTeamId =
+    raw.awayTeamId ?? (ourSide === "AWAY" ? ourTeamId : (raw.homeTeamId ?? ""));
+  const legacyTeam = {
+    onCourt: (raw as { onCourt?: OnCourtPlayer[] }).onCourt ?? [],
+    bench: (raw as { bench?: OnCourtPlayer[] }).bench ?? [],
+    foulsPeriod:
+      (raw as { ourTeamFoulsPeriod?: number }).ourTeamFoulsPeriod ?? 0,
+  };
+  const teams = raw.teams ?? {
+    HOME:
+      ourSide === "HOME"
+        ? legacyTeam
+        : { onCourt: [], bench: [], foulsPeriod: 0 },
+    AWAY:
+      ourSide === "AWAY"
+        ? legacyTeam
+        : { onCourt: [], bench: [], foulsPeriod: 0 },
+  };
   return {
     ...raw,
     ourTeamId,
     ourSide,
+    homeTeamId,
+    awayTeamId,
+    homeTeamName:
+      raw.homeTeamName ??
+      (ourSide === "HOME" ? raw.label?.split(" vs ")[0] : "Home"),
+    awayTeamName:
+      raw.awayTeamName ??
+      (ourSide === "AWAY" ? raw.label?.split(" vs ").at(-1) : raw.opponentName),
+    homeTeamCode: raw.homeTeamCode ?? "HOME",
+    awayTeamCode: raw.awayTeamCode ?? "AWAY",
     opponentName: raw.opponentName || "คู่แข่ง",
-    bench: (raw.bench ?? []).map(normalizePlayer),
-    onCourt: (raw.onCourt ?? []).map(normalizePlayer),
-    ourTeamFoulsPeriod: raw.ourTeamFoulsPeriod ?? 0,
+    teams: {
+      HOME: {
+        ...teams.HOME,
+        bench: (teams.HOME?.bench ?? []).map(normalizePlayer),
+        onCourt: (teams.HOME?.onCourt ?? []).map(normalizePlayer),
+        foulsPeriod: teams.HOME?.foulsPeriod ?? 0,
+      },
+      AWAY: {
+        ...teams.AWAY,
+        bench: (teams.AWAY?.bench ?? []).map(normalizePlayer),
+        onCourt: (teams.AWAY?.onCourt ?? []).map(normalizePlayer),
+        foulsPeriod: teams.AWAY?.foulsPeriod ?? 0,
+      },
+    },
+    activeSide: raw.activeSide === "AWAY" ? "AWAY" : "HOME",
+    periodStartHome: raw.periodStartHome ?? 0,
+    periodStartAway: raw.periodStartAway ?? 0,
+    completedPeriodScores: raw.completedPeriodScores ?? [],
   };
 }
 
@@ -151,6 +220,16 @@ export async function loadCachedGames(
       opponentName:
         g.opponentName ?? (g as { awayName?: string }).awayName ?? "คู่แข่ง",
       ourSide: g.ourSide === "AWAY" ? "AWAY" : "HOME",
+      homeTeamId: g.homeTeamId ?? (g.ourSide === "HOME" ? g.ourTeamId : ""),
+      awayTeamId: g.awayTeamId ?? (g.ourSide === "AWAY" ? g.ourTeamId : ""),
+      homeTeamName:
+        g.homeTeamName ??
+        (g.ourSide === "HOME" ? g.ourTeamName : g.opponentName),
+      awayTeamName:
+        g.awayTeamName ??
+        (g.ourSide === "AWAY" ? g.ourTeamName : g.opponentName),
+      homeTeamCode: g.homeTeamCode ?? "HOME",
+      awayTeamCode: g.awayTeamCode ?? "AWAY",
     }));
   } catch {
     return [];
@@ -207,9 +286,14 @@ export async function cacheGameRoster(
       map = {};
     }
   }
+  const teamIds = new Set(players.map((player) => player.teamId));
+  const existing = map[gameId]?.players ?? [];
   map[gameId] = {
     gameId,
-    players,
+    players: [
+      ...existing.filter((player) => !teamIds.has(player.teamId)),
+      ...players,
+    ],
     cachedAt: new Date().toISOString(),
   };
   await store.setMeta(GAME_ROSTER_CACHE_KEY, JSON.stringify(map));
@@ -233,17 +317,23 @@ export function bumpPlayerFoul(
   session: ActiveGameSession,
   playerId: string,
 ): ActiveGameSession {
-  const onCourt = session.onCourt.map((p) =>
+  const team = session.teams[session.activeSide];
+  const onCourt = team.onCourt.map((p) =>
     p.id === playerId ? { ...p, fouls: p.fouls + 1 } : p,
   );
-  const bench = session.bench.map((p) =>
+  const bench = team.bench.map((p) =>
     p.id === playerId ? { ...p, fouls: p.fouls + 1 } : p,
   );
   return {
     ...session,
-    onCourt,
-    bench,
-    ourTeamFoulsPeriod: session.ourTeamFoulsPeriod + 1,
+    teams: {
+      ...session.teams,
+      [session.activeSide]: {
+        onCourt,
+        bench,
+        foulsPeriod: team.foulsPeriod + 1,
+      },
+    },
   };
 }
 
@@ -252,20 +342,44 @@ export function applySub(
   playerOutId: string,
   playerInId: string,
 ): ActiveGameSession {
-  const out = session.onCourt.find((p) => p.id === playerOutId);
-  const inn = session.bench.find((p) => p.id === playerInId);
+  const team = session.teams[session.activeSide];
+  const out = team.onCourt.find((p) => p.id === playerOutId);
+  const inn = team.bench.find((p) => p.id === playerInId);
   if (!out || !inn) return session;
   return {
     ...session,
-    onCourt: session.onCourt.map((p) => (p.id === playerOutId ? inn : p)),
-    bench: session.bench.map((p) => (p.id === playerInId ? out : p)),
+    teams: {
+      ...session.teams,
+      [session.activeSide]: {
+        ...team,
+        onCourt: team.onCourt.map((p) => (p.id === playerOutId ? inn : p)),
+        bench: team.bench.map((p) => (p.id === playerInId ? out : p)),
+      },
+    },
   };
 }
 
-export function endPeriod(session: ActiveGameSession): ActiveGameSession {
+export function endPeriod(
+  session: ActiveGameSession,
+  homeScore: number,
+  awayScore: number,
+): ActiveGameSession {
   return {
     ...session,
     period: session.period + 1,
-    ourTeamFoulsPeriod: 0,
+    teams: {
+      HOME: { ...session.teams.HOME, foulsPeriod: 0 },
+      AWAY: { ...session.teams.AWAY, foulsPeriod: 0 },
+    },
+    periodStartHome: homeScore,
+    periodStartAway: awayScore,
+    completedPeriodScores: [
+      ...session.completedPeriodScores,
+      {
+        period: session.period,
+        homePoints: homeScore - session.periodStartHome,
+        awayPoints: awayScore - session.periodStartAway,
+      },
+    ],
   };
 }

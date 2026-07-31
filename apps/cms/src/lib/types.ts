@@ -29,13 +29,14 @@ export type GameRow = {
   our_team_id: string;
   opponent_name: string;
   our_side: OurSide;
-  home_team_id: string | null;
-  away_team_id: string | null;
+  home_team_id: string;
+  away_team_id: string;
 };
 
 export type GameRosterRow = {
   id: string;
   game_id: string;
+  team_id: string;
   player_id: string;
   is_starter: boolean;
   starter_slot: number | null;
@@ -49,9 +50,17 @@ export type RosterRow = {
   jersey_number: string | null;
 };
 
+export type PeriodScoreRow = {
+  game_id: string;
+  period: number;
+  home_points: number;
+  away_points: number;
+};
+
 export type PbpEvent = {
   event_id: string;
   game_id: string;
+  period: number;
   player_id: string | null;
   team_id: string | null;
   type: string;
@@ -62,6 +71,7 @@ export type PbpEvent = {
     y?: number;
     basketSide?: "LEFT" | "RIGHT";
     countsAsFga?: boolean;
+    kind?: string;
   };
 };
 
@@ -88,4 +98,17 @@ export function gameMatchLabel(
 
 export function gameSideLabel(ourSide: OurSide): string {
   return ourSide === "HOME" ? "เราเป็นเหย้า" : "เราเป็นเยือน";
+}
+
+const STATUS_TH: Record<string, string> = {
+  scheduled: "รอแข่ง",
+  tipoff: "ทิปออฟ",
+  live: "กำลังแข่ง",
+  period_break: "พักควอเตอร์",
+  final: "จบแล้ว",
+  official: "ยืนยันผล",
+};
+
+export function gameStatusLabel(status: string): string {
+  return STATUS_TH[status] ?? status;
 }

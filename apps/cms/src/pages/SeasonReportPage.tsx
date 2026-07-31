@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchGames, fetchPbp, fetchPlayers, fetchTeams } from "../lib/api";
 import { mergeSeasonLines } from "../lib/coverage";
+import { downloadSeasonExcel, downloadSeasonPdf } from "../lib/export-reports";
 import { buildFullBoxScore } from "../lib/stats-reports";
 
 type Props = {
@@ -46,6 +47,29 @@ export function SeasonReportPage({ embedded = false }: Props) {
   }, [pbpQueries, players.data, activeTeamId]);
 
   const loading = pbpQueries.some((q) => q.isLoading);
+  const seasonExportRows = useMemo<Array<Record<string, string | number>>>(
+    () =>
+      seasonLines.map((line) => ({
+        "#": line.jersey,
+        Player: line.playerName,
+        GP: line.games,
+        PTS: line.pts,
+        FGM: line.fgm,
+        FGA: line.fga,
+        "3PM": line.tpm,
+        "3PA": line.tpa,
+        FTM: line.ftm,
+        FTA: line.fta,
+        REB: line.reb,
+        AST: line.ast,
+        STL: line.stl,
+        BLK: line.blk,
+        TO: line.tov,
+        PF: line.pf,
+      })),
+    [seasonLines],
+  );
+  const seasonPdfHeaders = Object.keys(seasonExportRows[0] ?? {});
 
   const body = (
     <>
@@ -68,6 +92,41 @@ export function SeasonReportPage({ embedded = false }: Props) {
 
       <section className="panel">
         <h2>สถิติรวมฤดูกาล</h2>
+        {seasonLines.length > 0 && (
+          <div className="report-export-row">
+            <button
+              type="button"
+              className="btn"
+              onClick={() =>
+                void downloadSeasonExcel(
+                  `sp-season-${activeTeamId.slice(0, 8)}.xlsx`,
+                  seasonExportRows,
+                )
+              }
+            >
+              Excel ฤดูกาล
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() =>
+                void downloadSeasonPdf(
+                  `sp-season-${activeTeamId.slice(0, 8)}.pdf`,
+                  `สถิติรวมฤดูกาล — ${
+                    teams.data?.find((team) => team.id === activeTeamId)?.name ??
+                    "ทีม"
+                  }`,
+                  seasonPdfHeaders,
+                  seasonExportRows.map((row) =>
+                    seasonPdfHeaders.map((header) => String(row[header])),
+                  ),
+                )
+              }
+            >
+              PDF ฤดูกาล
+            </button>
+          </div>
+        )}
         {loading && <p>โหลด…</p>}
         {!loading && seasonLines.length === 0 && (
           <div className="empty-state">

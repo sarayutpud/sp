@@ -36,9 +36,6 @@ export async function pushOutbox(
   session?: ActiveGameSession | null,
 ): Promise<SyncResult> {
   const events = await store.pendingOutbox();
-  if (events.length === 0) {
-    return { ok: true, inserted: 0, skipped: 0 };
-  }
 
   if (session) {
     const ensured = await ensureGameOnServer({
@@ -46,6 +43,8 @@ export async function pushOutbox(
       ourTeamId: session.ourTeamId,
       opponentName: session.opponentName,
       ourSide: session.ourSide,
+      homeTeamId: session.homeTeamId,
+      awayTeamId: session.awayTeamId,
       competitionId: session.competitionId,
     });
     if (!ensured.ok) {
@@ -56,6 +55,25 @@ export async function pushOutbox(
         error: `สร้างแมตช์บนเซิร์ฟเวอร์ไม่สำเร็จ: ${ensured.error}`,
       };
     }
+
+    if (session.completedPeriodScores.length > 0) {
+      const { error } = await supabase.from("game_period_scores").upsert(
+        session.completedPeriodScores.map((score) => ({
+          game_id: session.gameId,
+          period: score.period,
+          home_points: score.homePoints,
+          away_points: score.awayPoints,
+        })),
+        { onConflict: "game_id,period" },
+      );
+      if (error) {
+        return { ok: false, inserted: 0, skipped: 0, error: error.message };
+      }
+    }
+  }
+
+  if (events.length === 0) {
+    return { ok: true, inserted: 0, skipped: 0 };
   }
 
   let inserted = 0;

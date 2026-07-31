@@ -1,6 +1,6 @@
 [package]
 name = "sp-courtside"
-version = "0.1.2"
+version = "0.1.3"
 description = "SP Courtside Live Stats"
 authors = ["sarayutpud"]
 edition = "2021"

@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { PreGameScreen } from "./PreGameScreen";
 import { th } from "./i18n/th";
-import { exportGameExcel } from "./lib/excel";
+import { exportGameExcel, exportGamePdf } from "./lib/excel";
 import {
   type ActiveGameSession,
   type OnCourtPlayer,
@@ -28,7 +28,6 @@ import {
   loadSession,
   saveSession,
 } from "./lib/game-session";
-import { type LocalStore, createLocalStore } from "./lib/local-store";
 import {
   astEvent,
   blkEvent,
@@ -42,6 +41,7 @@ import {
   subEvent,
   toEvent,
 } from "./lib/live-events";
+import { type LocalStore, createLocalStore } from "./lib/local-store";
 import { saveBlob } from "./lib/save-download";
 import { pushOutbox } from "./lib/sync-client";
 
@@ -49,7 +49,12 @@ type Wizard =
   | { step: "idle" }
   | { step: "outcome"; shot: ShotChartClick }
   | { step: "player"; shot: ShotChartClick; made: boolean }
-  | { step: "assist"; shot: ShotChartClick; playerId: string; shotEventId: string }
+  | {
+      step: "assist";
+      shot: ShotChartClick;
+      playerId: string;
+      shotEventId: string;
+    }
   | {
       step: "afterMiss";
       shot: ShotChartClick;
@@ -109,8 +114,8 @@ function PlayerChipBtn({
       <span className="player-chip-name">{name}</span>
       {fouls != null && (
         <span className="player-chip-fouls" aria-label={`fouls ${fouls}`}>
-          {Array.from({ length: 5 }, (_, i) => (
-            <i key={i} className={i < fouls ? "on" : ""} />
+          {["foul-1", "foul-2", "foul-3", "foul-4", "foul-5"].map((key, i) => (
+            <i key={key} className={i < fouls ? "on" : ""} />
           ))}
         </span>
       )}
@@ -146,7 +151,8 @@ function PlayerPickGrid({
 function eventLabel(e: PlayByPlayEvent): string {
   const p = e.payload as Record<string, unknown>;
   if (e.type === "SHOT") return `SHOT ${p.made ? "เข้า" : "ไม่เข้า"}`;
-  if (e.type === "FT") return `FT ${p.made ? "เข้า" : "ไม่เข้า"} ${p.attemptNo}/${p.ofAttempts}`;
+  if (e.type === "FT")
+    return `FT ${p.made ? "เข้า" : "ไม่เข้า"} ${p.attemptNo}/${p.ofAttempts}`;
   if (e.type === "FOUL") return `FOUL ${String(p.kind ?? "")}`;
   if (e.type === "REB") return `REB ${String(p.kind ?? "")}`;
   if (e.type === "SUB") return "SUB";
@@ -166,24 +172,44 @@ export function App() {
   const [lastSynced, setLastSynced] = useState<string>("—");
   const [syncMsg, setSyncMsg] = useState<string>("");
   const [showMoreFouls, setShowMoreFouls] = useState(false);
-  const [showMoreActions, setShowMoreActions] = useState(false);
   const syncingRef = useRef(false);
 
   const gameId = session?.gameId ?? "";
   const basketSide: BasketSide = useMemo(() => {
     if (!session) return "LEFT";
-    const isHome = session.ourSide === "HOME";
-    return attackSideForPeriod(
-      session.homeAttackSide,
-      session.period,
-      isHome,
-    );
+    const isHome = session.activeSide === "HOME";
+    return attackSideForPeriod(session.homeAttackSide, session.period, isHome);
   }, [session]);
-  const onCourt = session?.onCourt ?? [];
-  const bench = session?.bench ?? [];
+  const onCourt = session ? session.teams[session.activeSide].onCourt : [];
+  const bench = session ? session.teams[session.activeSide].bench : [];
+  const activeTeam = session ? session.teams[session.activeSide] : null;
   const inBonus = session
-    ? isInBonus(session.ourTeamFoulsPeriod, BONUS_AT)
+    ? isInBonus(activeTeam?.foulsPeriod ?? 0, BONUS_AT)
     : false;
+  const scores = useMemo(() => {
+    const scoreFor = (teamId: string) =>
+      events.reduce((total, event) => {
+        if (event.teamId !== teamId || event.voidedAt) return total;
+        const payload = event.payload as { made?: boolean; isThree?: boolean };
+        if (!payload.made) return total;
+        return (
+          total +
+          (event.type === "FT"
+            ? 1
+            : event.type === "SHOT"
+              ? payload.isThree
+                ? 3
+                : 2
+              : 0)
+        );
+      }, 0);
+    return session
+      ? {
+          home: scoreFor(session.homeTeamId),
+          away: scoreFor(session.awayTeamId),
+        }
+      : { home: 0, away: 0 };
+  }, [events, session]);
 
   const refresh = useCallback(async (s: LocalStore, activeGameId: string) => {
     if (!activeGameId) {
@@ -311,8 +337,21 @@ export function App() {
     void undo();
   });
   useHotkeys("escape", () => setWizard({ step: "idle" }));
-  useHotkeys("f", () => {
-    if (session) setWizard({ step: "foulPlayer" });
+  useHotkeys("h", () => {
+    if (session) void persistSession({ ...session, activeSide: "HOME" });
+  });
+  useHotkeys("a", () => {
+    if (session) void persistSession({ ...session, activeSide: "AWAY" });
+  });
+  useHotkeys("1,2,3,4,5", (e) => {
+    if (!session || wizard.step === "idle" || wizard.step === "outcome") return;
+    const idx = Number(e.key) - 1;
+    if (!onCourt[idx]) return;
+    e.preventDefault();
+    const btn = document.querySelector<HTMLButtonElement>(
+      `.player-pick-grid .player-chip:nth-child(${idx + 1}):not(:disabled)`,
+    );
+    btn?.click();
   });
 
   const tick = useCallback(() => {
@@ -376,12 +415,14 @@ export function App() {
       await refresh(store, session.gameId);
       setWizard({ step: "idle" });
       const fouls =
-        next.onCourt.find((p) => p.id === playerId)?.fouls ??
-        next.bench.find((p) => p.id === playerId)?.fouls ??
+        next.teams[next.activeSide].onCourt.find((p) => p.id === playerId)
+          ?.fouls ??
+        next.teams[next.activeSide].bench.find((p) => p.id === playerId)
+          ?.fouls ??
         0;
       if (isPlayerFouledOut(fouls, FOUL_OUT)) {
         setSyncMsg(th.fouledOut);
-      } else if (isInBonus(next.ourTeamFoulsPeriod, BONUS_AT)) {
+      } else if (isInBonus(next.teams[next.activeSide].foulsPeriod, BONUS_AT)) {
         setSyncMsg(th.bonus);
       }
     },
@@ -446,11 +487,11 @@ export function App() {
     if (!window.confirm(`จบ ${th.periodLabel(session.period)}?`)) return;
     const h = tick();
     await store.appendEvent(periodEndEvent(session, h));
-    await persistSession(endPeriod(session));
+    await persistSession(endPeriod(session, scores.home, scores.away));
     await refresh(store, session.gameId);
     setWizard({ step: "idle" });
     setSyncMsg(`จบ ${th.periodLabel(session.period)} แล้ว`);
-  }, [store, session, tick, persistSession, refresh]);
+  }, [store, session, tick, persistSession, refresh, scores]);
 
   const backup = useCallback(async () => {
     if (!store || !gameId) return;
@@ -465,19 +506,32 @@ export function App() {
 
   const exportExcel = useCallback(async () => {
     if (!gameId) return;
-    const result = await exportGameExcel(events, gameId);
+    if (!session) return;
+    const result = await exportGameExcel(events, session);
     if (result === "empty") {
       setSyncMsg(th.exportEmpty);
       return;
     }
     if (result === "saved") {
-      setSyncMsg(th.exportSaved(`sp-game-${gameId.slice(0, 8)}.xlsx`));
+      setSyncMsg(th.exportSaved(`iybc-match-box-${gameId.slice(0, 8)}.xlsx`));
     } else if (result === "cancelled") {
       setSyncMsg(th.exportCancelled);
     } else {
       setSyncMsg(th.exportFailed(result.error));
     }
-  }, [events, gameId]);
+  }, [events, gameId, session]);
+
+  const exportPdf = useCallback(async () => {
+    if (!session) return;
+    const result = await exportGamePdf(events, session);
+    if (result === "empty") setSyncMsg(th.exportEmpty);
+    else if (result === "saved")
+      setSyncMsg(
+        th.exportSaved(`iybc-match-box-${session.gameId.slice(0, 8)}.pdf`),
+      );
+    else if (result === "cancelled") setSyncMsg(th.exportCancelled);
+    else setSyncMsg(th.exportFailed(result.error));
+  }, [events, session]);
 
   const statusLabel = useMemo(() => {
     if (!online) return th.syncOffline;
@@ -486,9 +540,35 @@ export function App() {
   }, [online, pending]);
 
   const openWizard = useCallback((w: Wizard) => {
-    if (w.step !== "idle") setShowMoreActions(false);
     setWizard(w);
   }, []);
+
+  useHotkeys("f", () => {
+    if (session && wizard.step === "idle") openWizard({ step: "foulPlayer" });
+  });
+  useHotkeys("t", () => {
+    if (session && wizard.step === "idle") openWizard({ step: "ftPlayer" });
+  });
+  useHotkeys("u", () => {
+    if (session && wizard.step === "idle") openWizard({ step: "subOut" });
+  });
+  useHotkeys("s", () => {
+    if (session && wizard.step === "idle") openWizard({ step: "steal" });
+  });
+  useHotkeys("b", () => {
+    if (session && wizard.step === "idle") openWizard({ step: "block" });
+  });
+  useHotkeys("r", () => {
+    if (session && wizard.step === "idle")
+      openWizard({ step: "rebPlayer", kind: "DEFENSIVE", shotEventId: "" });
+  });
+  useHotkeys("o", () => {
+    if (session && wizard.step === "idle")
+      openWizard({ step: "rebPlayer", kind: "OFFENSIVE", shotEventId: "" });
+  });
+  useHotkeys("e", () => {
+    if (session && wizard.step === "idle") void doEndPeriod();
+  });
 
   if (!store) {
     return (
@@ -556,14 +636,42 @@ export function App() {
         </div>
       </header>
 
-      <div className="game-banner game-banner-compact">
-        <strong className="game-banner-label">{session.label}</strong>
-        <div className="banner-meta">
+      <div className="live-scoreboard">
+        <button
+          type="button"
+          className={`live-side home ${session.activeSide === "HOME" ? "active" : ""}`}
+          onClick={() => void persistSession({ ...session, activeSide: "HOME" })}
+        >
+          <span className="live-code">{session.homeTeamCode}</span>
+          <span className="live-name">{session.homeTeamName}</span>
+          <span className="live-pts">{scores.home}</span>
+        </button>
+        <div className="live-mid">
           <span className="chip">{th.periodLabel(session.period)}</span>
           <span className="chip">
-            {th.teamFouls(session.ourTeamFoulsPeriod)}
+            {th.teamFouls(activeTeam?.foulsPeriod ?? 0)}
             {inBonus ? ` · ${th.bonus}` : ""}
           </span>
+          <span className="live-recording">
+            {th.recordingSide}:{" "}
+            {session.activeSide === "HOME"
+              ? session.homeTeamCode
+              : session.awayTeamCode}
+          </span>
+        </div>
+        <button
+          type="button"
+          className={`live-side away ${session.activeSide === "AWAY" ? "active" : ""}`}
+          onClick={() => void persistSession({ ...session, activeSide: "AWAY" })}
+        >
+          <span className="live-code">{session.awayTeamCode}</span>
+          <span className="live-name">{session.awayTeamName}</span>
+          <span className="live-pts">{scores.away}</span>
+        </button>
+      </div>
+      <div className="live-toolbar">
+        <span className="muted live-hint">{th.scoreTapHint}</span>
+        <div className="live-toolbar-actions">
           <button
             type="button"
             className="btn tiny"
@@ -581,70 +689,75 @@ export function App() {
         </div>
       </div>
 
-      <div className="action-bar">
-        <div className="action-bar-primary">
-          <button
-            type="button"
-            className="btn danger"
-            onClick={() => openWizard({ step: "foulPlayer" })}
-          >
-            {th.actionFoul}
-          </button>
-          <button
-            type="button"
-            className="btn info"
-            onClick={() => openWizard({ step: "subOut" })}
-          >
-            {th.actionSub}
-          </button>
-          <button
-            type="button"
-            className="btn accent"
-            onClick={() => openWizard({ step: "ftPlayer" })}
-          >
-            {th.actionFt}
-          </button>
-        </div>
-        <div className="action-bar-more">
-          <button
-            type="button"
-            className={`btn tiny ${showMoreActions ? "active" : ""}`}
-            onClick={() => setShowMoreActions((v) => !v)}
-          >
-            {th.actionMore}
-          </button>
-          {showMoreActions && (
-            <div className="action-bar-secondary">
-              <button
-                type="button"
-                className="btn"
-                onClick={() => openWizard({ step: "steal" })}
-              >
-                {th.actionSteal}
-              </button>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => openWizard({ step: "block" })}
-              >
-                {th.actionBlock}
-              </button>
-              <button
-                type="button"
-                className="btn"
-                onClick={() =>
-                  openWizard({
-                    step: "rebPlayer",
-                    kind: "DEFENSIVE",
-                    shotEventId: "",
-                  })
-                }
-              >
-                {th.actionDreb}
-              </button>
-            </div>
-          )}
-        </div>
+      <div className="action-bar action-bar-grid">
+        <button
+          type="button"
+          className="btn danger"
+          onClick={() => openWizard({ step: "foulPlayer" })}
+        >
+          {th.actionFoul}
+          <kbd>F</kbd>
+        </button>
+        <button
+          type="button"
+          className="btn accent"
+          onClick={() => openWizard({ step: "ftPlayer" })}
+        >
+          {th.actionFt}
+          <kbd>T</kbd>
+        </button>
+        <button
+          type="button"
+          className="btn info"
+          onClick={() => openWizard({ step: "subOut" })}
+        >
+          {th.actionSub}
+          <kbd>U</kbd>
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => openWizard({ step: "steal" })}
+        >
+          {th.actionSteal}
+          <kbd>S</kbd>
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => openWizard({ step: "block" })}
+        >
+          {th.actionBlock}
+          <kbd>B</kbd>
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() =>
+            openWizard({
+              step: "rebPlayer",
+              kind: "DEFENSIVE",
+              shotEventId: "",
+            })
+          }
+        >
+          {th.actionDreb}
+          <kbd>R</kbd>
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() =>
+            openWizard({
+              step: "rebPlayer",
+              kind: "OFFENSIVE",
+              shotEventId: "",
+            })
+          }
+        >
+          {th.actionOreb}
+          <kbd>O</kbd>
+        </button>
       </div>
 
       <main className="main">
@@ -664,7 +777,12 @@ export function App() {
               />
             ))}
           </div>
-          {wizard.step === "idle" && <h1>{th.shotPrompt}</h1>}
+          {wizard.step === "idle" && (
+            <>
+              <h1>{th.shotPrompt}</h1>
+              <p className="muted court-hotkey-hint">{th.hotkeyHint}</p>
+            </>
+          )}
           <div className="court-chart-wrap">
             <ShotChart
               basketSide={basketSide}
@@ -695,6 +813,13 @@ export function App() {
               >
                 {th.exportExcel}
               </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void exportPdf()}
+              >
+                {th.exportPdf}
+              </button>
             </div>
             <button
               type="button"
@@ -722,10 +847,10 @@ export function App() {
                   {wizard.shot.isThree ? "3PT" : "2PT"} @ (
                   {wizard.shot.x.toFixed(2)}, {wizard.shot.y.toFixed(2)})
                 </p>
-                <div className="row">
+                <div className="row outcome-row">
                   <button
                     type="button"
-                    className="btn primary"
+                    className="btn primary outcome-btn"
                     onClick={() =>
                       openWizard({
                         step: "player",
@@ -738,7 +863,7 @@ export function App() {
                   </button>
                   <button
                     type="button"
-                    className="btn"
+                    className="btn outcome-btn"
                     onClick={() =>
                       openWizard({
                         step: "player",
@@ -767,12 +892,7 @@ export function App() {
                   players={onCourt}
                   onPick={(id) => {
                     if (wizard.made) {
-                      openWizard({
-                        step: "assist",
-                        shot: wizard.shot,
-                        playerId: id,
-                        shotEventId: "",
-                      });
+                      void finishShotMade(wizard.shot, id, null);
                     } else {
                       void persistShotMissThen(wizard.shot, id);
                     }
@@ -831,7 +951,8 @@ export function App() {
             {wizard.step === "rebPlayer" && (
               <>
                 <h2>
-                  {th.selectRebPlayer} ({wizard.kind})
+                  {th.selectRebPlayer} —{" "}
+                  {wizard.kind === "OFFENSIVE" ? th.oreb : th.dreb}
                 </h2>
                 <PlayerPickGrid
                   players={onCourt}
@@ -922,9 +1043,7 @@ export function App() {
                 <h2>{th.ftSelectPlayer}</h2>
                 <PlayerPickGrid
                   players={onCourt}
-                  onPick={(id) =>
-                    openWizard({ step: "ftCount", playerId: id })
-                  }
+                  onPick={(id) => openWizard({ step: "ftCount", playerId: id })}
                 />
                 <button
                   type="button"
@@ -1064,11 +1183,7 @@ export function App() {
       )}
 
       {syncMsg && (
-        <button
-          type="button"
-          className="toast"
-          onClick={() => setSyncMsg("")}
-        >
+        <button type="button" className="toast" onClick={() => setSyncMsg("")}>
           {syncMsg}
         </button>
       )}

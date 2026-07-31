@@ -28,12 +28,20 @@ export function PreGameScreen({ store, online, onStart }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState("");
-  const [players, setPlayers] = useState<
-    Array<{ id: string; name: string; jerseyNumber: string; isStarter?: boolean }>
-  >([]);
-  const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [playersBySide, setPlayersBySide] = useState<
+    Record<
+      OurSide,
+      Array<{
+        id: string;
+        name: string;
+        jerseyNumber: string;
+        isStarter?: boolean;
+      }>
+    >
+  >({ HOME: [], AWAY: [] });
+  const [selectedPlayers, setSelectedPlayers] = useState<
+    Record<OurSide, Set<string>>
+  >(() => ({ HOME: new Set(), AWAY: new Set() }));
   const [busy, setBusy] = useState(false);
   const [playersFromCache, setPlayersFromCache] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -41,7 +49,7 @@ export function PreGameScreen({ store, online, onStart }: Props) {
     Array<{ id: string; name: string; short_name: string | null }>
   >([]);
   const [ourTeamId, setOurTeamId] = useState("");
-  const [opponentName, setOpponentName] = useState("");
+  const [opponentTeamId, setOpponentTeamId] = useState("");
   const [ourSide, setOurSide] = useState<OurSide>("HOME");
   const [creating, setCreating] = useState(false);
 
@@ -62,6 +70,7 @@ export function PreGameScreen({ store, online, onStart }: Props) {
         const teamRows = await fetchTeamsOnline();
         setTeams(teamRows);
         setOurTeamId((prev) => prev || teamRows[0]?.id || "");
+        setOpponentTeamId((prev) => prev || teamRows[1]?.id || "");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "โหลดรายการเกมไม่สำเร็จ");
@@ -76,34 +85,46 @@ export function PreGameScreen({ store, online, onStart }: Props) {
 
   useEffect(() => {
     if (!selectedGame) {
-      setPlayers([]);
-      setSelectedPlayers(new Set());
+      setPlayersBySide({ HOME: [], AWAY: [] });
+      setSelectedPlayers({ HOME: new Set(), AWAY: new Set() });
       return;
     }
     let cancelled = false;
     setBusy(true);
-    fetchGameRosterPlayers(
-      store,
-      selectedGame.id,
-      selectedGame.ourTeamId,
-      online,
-    )
-      .then((result) => {
+    Promise.all([
+      fetchGameRosterPlayers(
+        store,
+        selectedGame.id,
+        selectedGame.homeTeamId,
+        online,
+      ),
+      fetchGameRosterPlayers(
+        store,
+        selectedGame.id,
+        selectedGame.awayTeamId,
+        online,
+      ),
+    ])
+      .then(([home, away]) => {
         if (cancelled) return;
-        setPlayers(result.players);
-        setPlayersFromCache(result.fromCache);
-        const starters = result.players.filter((p) => p.isStarter).map((p) => p.id);
-        const initial =
-          starters.length === 5
-            ? starters
-            : result.players.slice(0, 5).map((p) => p.id);
-        setSelectedPlayers(new Set(initial));
+        setPlayersBySide({ HOME: home.players, AWAY: away.players });
+        setPlayersFromCache(home.fromCache || away.fromCache);
+        const initial = (players: typeof home.players) => {
+          const starters = players.filter((p) => p.isStarter).map((p) => p.id);
+          return new Set(
+            starters.length === 5
+              ? starters
+              : players.slice(0, 5).map((p) => p.id),
+          );
+        };
+        setSelectedPlayers({
+          HOME: initial(home.players),
+          AWAY: initial(away.players),
+        });
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "โหลดรายชื่อผู้เล่นไม่สำเร็จ",
-          );
+          setError(err instanceof Error ? err.message : "โหลดรายชื่อผู้เล่นไม่สำเร็จ");
         }
       })
       .finally(() => {
@@ -114,12 +135,12 @@ export function PreGameScreen({ store, online, onStart }: Props) {
     };
   }, [selectedGame, store, online]);
 
-  const togglePlayer = (id: string) => {
+  const togglePlayer = (side: OurSide, id: string) => {
     setSelectedPlayers((prev) => {
-      const next = new Set(prev);
+      const next = new Set(prev[side]);
       if (next.has(id)) next.delete(id);
       else if (next.size < 5) next.add(id);
-      return next;
+      return { ...prev, [side]: next };
     });
   };
 
@@ -128,8 +149,8 @@ export function PreGameScreen({ store, online, onStart }: Props) {
       setError(th.createMatchNeedOnline);
       return;
     }
-    if (!opponentName.trim()) {
-      setError("ใส่ชื่อคู่แข่ง");
+    if (!opponentTeamId || opponentTeamId === ourTeamId) {
+      setError("เลือกคู่แข่งที่เป็นคนละทีม");
       return;
     }
     setCreating(true);
@@ -138,7 +159,7 @@ export function PreGameScreen({ store, online, onStart }: Props) {
       const created = await createGameOnline({
         competitionId: DEFAULT_COMPETITION_ID,
         ourTeamId,
-        opponentName,
+        opponentTeamId,
         ourSide,
       });
       const nextGames = [created, ...games.filter((g) => g.id !== created.id)];
@@ -146,7 +167,7 @@ export function PreGameScreen({ store, online, onStart }: Props) {
       await cacheGames(store, nextGames);
       setSelectedId(created.id);
       setShowCreate(false);
-      setOpponentName("");
+      setOpponentTeamId("");
     } catch (err) {
       setError(err instanceof Error ? err.message : th.createMatchFailed);
     } finally {
@@ -155,7 +176,12 @@ export function PreGameScreen({ store, online, onStart }: Props) {
   };
 
   const start = async () => {
-    if (!selectedGame || selectedPlayers.size !== 5) return;
+    if (
+      !selectedGame ||
+      selectedPlayers.HOME.size !== 5 ||
+      selectedPlayers.AWAY.size !== 5
+    )
+      return;
     const toRow = (p: {
       id: string;
       name: string;
@@ -166,20 +192,36 @@ export function PreGameScreen({ store, online, onStart }: Props) {
       jerseyNumber: p.jerseyNumber,
       fouls: 0,
     });
-    const onCourt = players.filter((p) => selectedPlayers.has(p.id)).map(toRow);
-    const bench = players.filter((p) => !selectedPlayers.has(p.id)).map(toRow);
+    const toTeam = (side: OurSide) => ({
+      onCourt: playersBySide[side]
+        .filter((p) => selectedPlayers[side].has(p.id))
+        .map(toRow),
+      bench: playersBySide[side]
+        .filter((p) => !selectedPlayers[side].has(p.id))
+        .map(toRow),
+      foulsPeriod: 0,
+    });
     const session: ActiveGameSession = {
       gameId: selectedGame.id,
       ourTeamId: selectedGame.ourTeamId,
       opponentName: selectedGame.opponentName,
       ourSide: selectedGame.ourSide,
+      homeTeamId: selectedGame.homeTeamId,
+      awayTeamId: selectedGame.awayTeamId,
+      homeTeamName: selectedGame.homeTeamName,
+      awayTeamName: selectedGame.awayTeamName,
+      homeTeamCode: selectedGame.homeTeamCode,
+      awayTeamCode: selectedGame.awayTeamCode,
       competitionId: selectedGame.competitionId ?? DEFAULT_COMPETITION_ID,
-      label: `${selectedGame.ourTeamName} vs ${selectedGame.opponentName}`,
-      onCourt,
-      bench,
+      scheduledAt: selectedGame.scheduledAt,
+      label: `${selectedGame.homeTeamName} vs ${selectedGame.awayTeamName}`,
+      teams: { HOME: toTeam("HOME"), AWAY: toTeam("AWAY") },
+      activeSide: selectedGame.ourSide,
       period: 1,
       homeAttackSide: "LEFT",
-      ourTeamFoulsPeriod: 0,
+      periodStartHome: 0,
+      periodStartAway: 0,
+      completedPeriodScores: [],
     };
     await saveSession(store, session);
     onStart(session);
@@ -252,13 +294,20 @@ export function PreGameScreen({ store, online, onStart }: Props) {
               </select>
             </label>
             <label>
-              {th.opponentName}
-              <input
-                type="text"
-                value={opponentName}
-                onChange={(e) => setOpponentName(e.target.value)}
-                placeholder="เช่น โรงเรียน ก"
-              />
+              {th.opponentTeam}
+              <select
+                value={opponentTeamId}
+                onChange={(e) => setOpponentTeamId(e.target.value)}
+              >
+                <option value="">{th.selectOpponent}</option>
+                {teams
+                  .filter((t) => t.id !== ourTeamId)
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+              </select>
             </label>
             <fieldset className="side-fieldset">
               <legend>{th.ourSide}</legend>
@@ -284,7 +333,12 @@ export function PreGameScreen({ store, online, onStart }: Props) {
             <button
               type="button"
               className="btn primary"
-              disabled={creating || !ourTeamId || !opponentName.trim()}
+              disabled={
+                creating ||
+                !ourTeamId ||
+                !opponentTeamId ||
+                ourTeamId === opponentTeamId
+              }
               onClick={() => void createMatch()}
             >
               {creating ? th.creatingMatch : th.createMatchSubmit}
@@ -294,40 +348,53 @@ export function PreGameScreen({ store, online, onStart }: Props) {
 
         {selectedGame && (
           <div className="pregame-roster">
-            <h2>
-              {th.selectOnCourt(selectedGame.ourTeamName)} ·{" "}
-              {selectedGame.ourSide === "HOME" ? th.sideHome : th.sideAway}
-            </h2>
+            <h2>{th.selectBothOnCourt}</h2>
             <p className="muted">
-              {th.onCourtCount(selectedPlayers.size)}
+              {th.onCourtCount(selectedPlayers.HOME.size)} /{" "}
+              {th.onCourtCount(selectedPlayers.AWAY.size)}
               {playersFromCache ? ` · ${th.playersFromCache}` : ""}
             </p>
             {busy && <p className="muted">กำลังโหลดรายชื่อ…</p>}
-            {players.length === 0 && !busy && <p>{th.noPlayers}</p>}
-            <ul className="pregame-players">
-              {players.map((p) => {
-                const checked = selectedPlayers.has(p.id);
-                const disabled = !checked && selectedPlayers.size >= 5;
-                return (
-                  <li key={p.id}>
-                    <label className={disabled ? "disabled" : ""}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        disabled={disabled}
-                        onChange={() => togglePlayer(p.id)}
-                      />
-                      {p.jerseyNumber} {p.name}
-                      {p.isStarter ? " · ตัวจริง" : ""}
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
+            {(["HOME", "AWAY"] as const).map((side) => (
+              <div key={side}>
+                <h3>
+                  {side === "HOME"
+                    ? selectedGame.homeTeamName
+                    : selectedGame.awayTeamName}
+                </h3>
+                {playersBySide[side].length === 0 && !busy && (
+                  <p>{th.noPlayers}</p>
+                )}
+                <ul className="pregame-players">
+                  {playersBySide[side].map((p) => {
+                    const checked = selectedPlayers[side].has(p.id);
+                    const disabled =
+                      !checked && selectedPlayers[side].size >= 5;
+                    return (
+                      <li key={p.id}>
+                        <label className={disabled ? "disabled" : ""}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={disabled}
+                            onChange={() => togglePlayer(side, p.id)}
+                          />
+                          {p.jerseyNumber} {p.name}
+                          {p.isStarter ? " · ตัวจริง" : ""}
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
             <button
               type="button"
               className="btn primary block"
-              disabled={selectedPlayers.size !== 5}
+              disabled={
+                selectedPlayers.HOME.size !== 5 ||
+                selectedPlayers.AWAY.size !== 5
+              }
               onClick={() => void start()}
             >
               {th.startGame}

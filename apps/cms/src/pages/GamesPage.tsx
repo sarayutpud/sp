@@ -18,6 +18,7 @@ import {
   type OurSide,
   gameMatchLabel,
   gameSideLabel,
+  gameStatusLabel,
 } from "../lib/types";
 
 function toLocalInputValue(d: Date) {
@@ -29,7 +30,7 @@ export function GamesPage() {
   const qc = useQueryClient();
   const [competitionId, setCompetitionId] = useState(DEFAULT_COMPETITION_ID);
   const [ourTeamId, setOurTeamId] = useState("");
-  const [opponentName, setOpponentName] = useState("");
+  const [opponentTeamId, setOpponentTeamId] = useState("");
   const [ourSide, setOurSide] = useState<OurSide>("HOME");
   const [scheduledAt, setScheduledAt] = useState(() =>
     toLocalInputValue(new Date(Date.now() + 2 * 60 * 60 * 1000)),
@@ -38,7 +39,7 @@ export function GamesPage() {
   const [msg, setMsg] = useState("");
   const [rosterGameId, setRosterGameId] = useState<string | null>(null);
   const [editGameId, setEditGameId] = useState<string | null>(null);
-  const [editOpponent, setEditOpponent] = useState("");
+  const [editOpponentTeamId, setEditOpponentTeamId] = useState("");
   const [editSide, setEditSide] = useState<OurSide>("HOME");
   const [editScheduled, setEditScheduled] = useState("");
   const [dressedIds, setDressedIds] = useState<Set<string>>(new Set());
@@ -102,10 +103,11 @@ export function GamesPage() {
   const createMut = useMutation({
     mutationFn: async () => {
       if (!activeOurTeamId) throw new Error("เลือกทีมเรา");
+      if (!opponentTeamId) throw new Error("เลือกทีมคู่แข่ง");
       return createGame({
         competition_id: activeCompId,
         our_team_id: activeOurTeamId,
-        opponent_name: opponentName,
+        opponent_team_id: opponentTeamId,
         our_side: ourSide,
         scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
         home_attack_side: attackSide,
@@ -113,7 +115,7 @@ export function GamesPage() {
     },
     onSuccess: async () => {
       setMsg("สร้างแมตช์แล้ว — จัดรายชื่อลงแข่งด้านล่าง");
-      setOpponentName("");
+      setOpponentTeamId("");
       await qc.invalidateQueries({ queryKey: ["games"] });
     },
     onError: (e: Error) => setMsg(e.message),
@@ -133,7 +135,7 @@ export function GamesPage() {
     mutationFn: async () => {
       if (!editGameId || !editGame) throw new Error("เลือกแมตช์");
       await updateGame(editGameId, {
-        opponent_name: editOpponent,
+        opponent_team_id: editOpponentTeamId,
         our_side: editSide,
         scheduled_at: editScheduled
           ? new Date(editScheduled).toISOString()
@@ -151,11 +153,16 @@ export function GamesPage() {
 
   const rosterMut = useMutation({
     mutationFn: async () => {
-      if (!rosterGameId) return;
+      if (!rosterGameId || !rosterGame) return;
       const dressed = [...dressedIds];
       const starters = [...starterIds].filter((id) => dressedIds.has(id));
       if (starters.length > 5) throw new Error("ตัวจริงได้ไม่เกิน 5 คน");
-      return saveGameRoster(rosterGameId, dressed, starters);
+      return saveGameRoster(
+        rosterGameId,
+        rosterGame.our_team_id,
+        dressed,
+        starters,
+      );
     },
     onSuccess: async () => {
       setMsg("บันทึกรายชื่อลงแข่งแล้ว — Courtside จะดึงหลังซิงก์");
@@ -207,7 +214,9 @@ export function GamesPage() {
   function openEdit(game: GameRow) {
     setEditGameId(game.id);
     setRosterGameId(null);
-    setEditOpponent(game.opponent_name);
+    setEditOpponentTeamId(
+      game.our_side === "HOME" ? game.away_team_id : game.home_team_id,
+    );
     setEditSide(game.our_side);
     setEditScheduled(
       game.scheduled_at
@@ -265,38 +274,39 @@ export function GamesPage() {
               </select>
             </label>
             <label>
-              ชื่อคู่แข่ง
-              <input
-                type="text"
-                value={opponentName}
-                onChange={(e) => setOpponentName(e.target.value)}
-                placeholder="เช่น ทีม ABC"
+              ทีมคู่แข่ง
+              <select
+                value={opponentTeamId}
+                onChange={(e) => setOpponentTeamId(e.target.value)}
                 required
-              />
+              >
+                <option value="">— เลือกทีม —</option>
+                {(teams.data ?? [])
+                  .filter((t) => t.id !== activeOurTeamId)
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+              </select>
             </label>
             <fieldset className="side-fieldset">
               <legend>ฝั่งเรา</legend>
-              <div className="row">
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="our_side"
-                    value="HOME"
-                    checked={ourSide === "HOME"}
-                    onChange={() => setOurSide("HOME")}
-                  />
+              <div className="segment" role="group" aria-label="ฝั่งเรา">
+                <button
+                  type="button"
+                  className={ourSide === "HOME" ? "active" : ""}
+                  onClick={() => setOurSide("HOME")}
+                >
                   เหย้า
-                </label>
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="our_side"
-                    value="AWAY"
-                    checked={ourSide === "AWAY"}
-                    onChange={() => setOurSide("AWAY")}
-                  />
+                </button>
+                <button
+                  type="button"
+                  className={ourSide === "AWAY" ? "active" : ""}
+                  onClick={() => setOurSide("AWAY")}
+                >
                   เยือน
-                </label>
+                </button>
               </div>
             </fieldset>
             <label>
@@ -373,7 +383,7 @@ export function GamesPage() {
                       </td>
                       <td>
                         <span className={`badge status-${g.status}`}>
-                          {g.status}
+                          {gameStatusLabel(g.status)}
                         </span>
                       </td>
                       <td className="actions">
@@ -443,12 +453,21 @@ export function GamesPage() {
             }}
           >
             <label>
-              ชื่อคู่แข่ง
-              <input
-                value={editOpponent}
-                onChange={(e) => setEditOpponent(e.target.value)}
+              ทีมคู่แข่ง
+              <select
+                value={editOpponentTeamId}
+                onChange={(e) => setEditOpponentTeamId(e.target.value)}
                 required
-              />
+              >
+                <option value="">— เลือกทีม —</option>
+                {(teams.data ?? [])
+                  .filter((team) => team.id !== editGame.our_team_id)
+                  .map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+              </select>
             </label>
             <fieldset className="side-fieldset">
               <legend>ฝั่งเรา</legend>

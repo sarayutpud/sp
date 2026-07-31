@@ -1,4 +1,9 @@
-import type { FoulKind, Hlc, PlayByPlayEvent, ReboundKind } from "@sp/shared-types";
+import type {
+  FoulKind,
+  Hlc,
+  PlayByPlayEvent,
+  ReboundKind,
+} from "@sp/shared-types";
 import { tickHlc } from "@sp/sync-protocol";
 import type { ShotChartClick } from "@sp/ui";
 import type { ActiveGameSession } from "./game-session";
@@ -18,7 +23,12 @@ export function baseEvent(
     eventId: crypto.randomUUID(),
     gameId: session.gameId,
     period: session.period,
-    teamId: partial.teamId === undefined ? session.ourTeamId : partial.teamId,
+    teamId:
+      partial.teamId === undefined
+        ? session.activeSide === "HOME"
+          ? session.homeTeamId
+          : session.awayTeamId
+        : partial.teamId,
     playerId: partial.playerId ?? null,
     type: partial.type,
     hlc,
@@ -152,7 +162,8 @@ export function subEvent(
     type: "SUB",
     playerId: playerInId,
     payload: {
-      teamId: session.ourTeamId,
+      teamId:
+        session.activeSide === "HOME" ? session.homeTeamId : session.awayTeamId,
       playerInId,
       playerOutId,
     },
