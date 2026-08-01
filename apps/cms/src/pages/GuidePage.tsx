@@ -17,7 +17,11 @@ function FlowInfographic() {
             <strong>{s.title}</strong>
             <small>{s.sub}</small>
           </div>
-          {i < steps.length - 1 && <span className="guide-flow-arrow" aria-hidden>→</span>}
+          {i < steps.length - 1 && (
+            <span className="guide-flow-arrow" aria-hidden>
+              →
+            </span>
+          )}
         </div>
       ))}
     </div>
@@ -33,24 +37,98 @@ function CourtInfographic() {
       aria-label="แผนภาพสนาม 2PT และ 3PT"
     >
       <title>โซน 2 คะแนน / 3 คะแนน</title>
-      <rect x="1" y="1" width="278" height="148" fill="#e2c48a" stroke="#1a237e" strokeWidth="2" />
-      <line x1="140" y1="1" x2="140" y2="149" stroke="#1a237e" strokeWidth="1.5" />
-      <rect x="1" y="35" width="58" height="80" fill="rgba(26,35,126,0.08)" stroke="#1a237e" strokeWidth="1.2" />
-      <rect x="221" y="35" width="58" height="80" fill="rgba(26,35,126,0.08)" stroke="#1a237e" strokeWidth="1.2" />
+      <rect
+        x="1"
+        y="1"
+        width="278"
+        height="148"
+        fill="#e2c48a"
+        stroke="#1a237e"
+        strokeWidth="2"
+      />
+      <line
+        x1="140"
+        y1="1"
+        x2="140"
+        y2="149"
+        stroke="#1a237e"
+        strokeWidth="1.5"
+      />
+      <rect
+        x="1"
+        y="35"
+        width="58"
+        height="80"
+        fill="rgba(26,35,126,0.08)"
+        stroke="#1a237e"
+        strokeWidth="1.2"
+      />
+      <rect
+        x="221"
+        y="35"
+        width="58"
+        height="80"
+        fill="rgba(26,35,126,0.08)"
+        stroke="#1a237e"
+        strokeWidth="1.2"
+      />
       <circle cx="16" cy="75" r="4" fill="#e53935" />
       <circle cx="264" cy="75" r="4" fill="#e53935" />
       <line x1="1" y1="9" x2="30" y2="9" stroke="#1a237e" strokeWidth="1.4" />
-      <line x1="1" y1="141" x2="30" y2="141" stroke="#1a237e" strokeWidth="1.4" />
-      <path d="M 30 9 A 67.5 67.5 0 0 1 30 141" fill="none" stroke="#1a237e" strokeWidth="1.4" />
-      <line x1="279" y1="9" x2="250" y2="9" stroke="#1a237e" strokeWidth="1.4" />
-      <line x1="279" y1="141" x2="250" y2="141" stroke="#1a237e" strokeWidth="1.4" />
-      <path d="M 250 9 A 67.5 67.5 0 0 0 250 141" fill="none" stroke="#1a237e" strokeWidth="1.4" />
-      <text x="48" y="78" fill="#1a237e" fontSize="11" fontWeight="700">2PT</text>
-      <text x="88" y="40" fill="#0f1654" fontSize="10" fontWeight="700">3PT</text>
-      <text x="210" y="78" fill="#1a237e" fontSize="11" fontWeight="700">2PT</text>
-      <text x="168" y="40" fill="#0f1654" fontSize="10" fontWeight="700">3PT</text>
-      <text x="8" y="20" fill="#5a628a" fontSize="8">L</text>
-      <text x="266" y="20" fill="#5a628a" fontSize="8">R</text>
+      <line
+        x1="1"
+        y1="141"
+        x2="30"
+        y2="141"
+        stroke="#1a237e"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M 30 9 A 67.5 67.5 0 0 1 30 141"
+        fill="none"
+        stroke="#1a237e"
+        strokeWidth="1.4"
+      />
+      <line
+        x1="279"
+        y1="9"
+        x2="250"
+        y2="9"
+        stroke="#1a237e"
+        strokeWidth="1.4"
+      />
+      <line
+        x1="279"
+        y1="141"
+        x2="250"
+        y2="141"
+        stroke="#1a237e"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M 250 9 A 67.5 67.5 0 0 0 250 141"
+        fill="none"
+        stroke="#1a237e"
+        strokeWidth="1.4"
+      />
+      <text x="48" y="78" fill="#1a237e" fontSize="11" fontWeight="700">
+        2PT
+      </text>
+      <text x="88" y="40" fill="#0f1654" fontSize="10" fontWeight="700">
+        3PT
+      </text>
+      <text x="210" y="78" fill="#1a237e" fontSize="11" fontWeight="700">
+        2PT
+      </text>
+      <text x="168" y="40" fill="#0f1654" fontSize="10" fontWeight="700">
+        3PT
+      </text>
+      <text x="8" y="20" fill="#5a628a" fontSize="8">
+        L
+      </text>
+      <text x="266" y="20" fill="#5a628a" fontSize="8">
+        R
+      </text>
     </svg>
   );
 }
@@ -78,6 +156,30 @@ function ShotFlowInfographic() {
   );
 }
 
+const QUICK_LINKS = [
+  {
+    to: "/competitions",
+    title: "การแข่งขัน",
+    blurb: "เพิ่ม / แก้ / ลบ ลีก·ทัวร์นาเมนต์",
+  },
+  { to: "/teams", title: "ทีม", blurb: "เพิ่ม / แก้ / ลบทีมเราและคู่แข่ง" },
+  {
+    to: "/players",
+    title: "ผู้เล่น",
+    blurb: "เบอร์ + ชื่อ ของทีมที่เลือก",
+  },
+  {
+    to: "/games",
+    title: "แมตช์",
+    blurb: "เลือกจากรายการ · จัดรายชื่อ 5+5",
+  },
+  {
+    to: "/reports",
+    title: "รายงาน",
+    blurb: "FIBA · ประเมินผู้เล่น · แชร์ลิงก์",
+  },
+] as const;
+
 export function GuidePage() {
   return (
     <div className="page-block guide-page">
@@ -85,23 +187,45 @@ export function GuidePage() {
         <p className="guide-kicker">SP FITNESS · CMS + Courtside</p>
         <h1>เริ่มต้น & คู่มือใช้งาน</h1>
         <p className="muted">
-          รวมขั้นตอนตั้งต้นกับคำอธิบายละเอียดในหน้าเดียว — สองทีมต่อนัด · รายงานหลักคือ{" "}
-          <strong>FIBA Box Score</strong>
+          อัปเดตล่าสุด: หน้าแยกการแข่งขัน/ทีม · แมตช์เหลือแค่เลือกจากรายการ ·
+          รายงานมีแท็บประเมินผู้เล่น — รายงานหลักยังเป็น{" "}
+          <strong>FIBA Box Score สองทีม</strong>
         </p>
       </header>
 
       <nav className="guide-toc panel" aria-label="สารบัญ">
         <h2>สารบัญ</h2>
         <ol>
-          <li><a href="#overview">ภาพรวมระบบ</a></li>
-          <li><a href="#steps">ลำดับงาน 4 ขั้น</a></li>
-          <li><a href="#courtside">Courtside — บันทึกข้างสนาม</a></li>
-          <li><a href="#shot-math">2 คะแนน / 3 คะแนน</a></li>
-          <li><a href="#formulas">สูตรในใบสถิติ</a></li>
-          <li><a href="#reports">รายงาน & ส่งออก</a></li>
-          <li><a href="#cleanup">ลบแมตช์ / จบฤดูกาล</a></li>
-          <li><a href="#faq">คำถามที่พบบ่อย</a></li>
-          <li><a href="#troubleshoot">แก้ปัญหาเบื้องต้น</a></li>
+          <li>
+            <a href="#overview">ภาพรวมระบบ</a>
+          </li>
+          <li>
+            <a href="#pages">หน้าใน CMS</a>
+          </li>
+          <li>
+            <a href="#steps">ลำดับงาน 5 ขั้น</a>
+          </li>
+          <li>
+            <a href="#courtside">Courtside — บันทึกข้างสนาม</a>
+          </li>
+          <li>
+            <a href="#shot-math">2 คะแนน / 3 คะแนน</a>
+          </li>
+          <li>
+            <a href="#formulas">สูตรในใบสถิติ</a>
+          </li>
+          <li>
+            <a href="#reports">รายงาน & ส่งออก</a>
+          </li>
+          <li>
+            <a href="#cleanup">ลบแมตช์ / จบฤดูกาล</a>
+          </li>
+          <li>
+            <a href="#faq">คำถามที่พบบ่อย</a>
+          </li>
+          <li>
+            <a href="#troubleshoot">แก้ปัญหาเบื้องต้น</a>
+          </li>
         </ol>
       </nav>
 
@@ -112,14 +236,13 @@ export function GuidePage() {
             <h3>CMS (เว็บนี้)</h3>
             <ul>
               <li>
-                หน้าแยก:{" "}
-                <Link to="/competitions">การแข่งขัน</Link> ·{" "}
-                <Link to="/teams">ทีม</Link> ·{" "}
-                <Link to="/players">ผู้เล่น</Link>
+                ตั้งต้นที่หน้าแยก: การแข่งขัน · ทีม · ผู้เล่น (ไม่ฝังในฟอร์มแมตช์)
               </li>
-              <li>สร้างแมตช์ · จัดรายชื่อลงแข่งทั้งสองฝั่ง</li>
-              <li>ใบสถิติ FIBA · ประเมินผู้เล่น · แชร์ลิงก์</li>
-              <li>ลบแมตช์ที่จบแล้วได้ (ยืนยันก่อน)</li>
+              <li>สร้างแมตช์ด้วยการเลือกจาก dropdown · จัดรายชื่อลงแข่งทั้งสองฝั่ง</li>
+              <li>
+                รายงาน: ใบสถิติ FIBA · ประเมินผู้เล่น · สรุปโค้ช · โซนยิง · แชร์ลิงก์
+              </li>
+              <li>ลบแมตช์ทีละนัดได้ (ยืนยันก่อน)</li>
             </ul>
           </div>
           <div className="guide-compare-card">
@@ -127,14 +250,46 @@ export function GuidePage() {
             <ul>
               <li>เลือกแมตช์ · จัด 5 คนบนสนามทั้งฝั่ง</li>
               <li>แตะสนามบันทึกช็อต / ฟาล์ว / รีบาวด์</li>
-              <li>คอลัมน์ขวา: ซิงก์ · อีเวนต์ · Excel/PDF FIBA</li>
+              <li>
+                คอลัมน์ขวา: ออนไลน์+ซิงก์ · คู่มือ/จบ Q/เปลี่ยนแมตช์ · อีเวนต์ ·
+                Excel/PDF FIBA · สถานะตะกร้า
+              </li>
             </ul>
           </div>
         </div>
       </section>
 
+      <section id="pages" className="panel guide-section">
+        <h2>2) หน้าใน CMS — ทำอะไรที่ไหน</h2>
+        <p className="muted report-note">
+          แยกหน้าที่ชัด: จัดการข้อมูลตั้งต้นคนละหน้า · หน้าแมตช์ใช้เลือกอย่างเดียว
+        </p>
+        <div className="guide-quick-grid">
+          {QUICK_LINKS.map((item) => (
+            <Link key={item.to} to={item.to} className="guide-quick-card">
+              <strong>{item.title}</strong>
+              <span>{item.blurb}</span>
+            </Link>
+          ))}
+        </div>
+        <ul className="guide-bullets">
+          <li>
+            <Link to="/competitions">การแข่งขัน</Link> — เพิ่ม/แก้ไข/ลบลีกหรือทัวร์นาเมนต์
+          </li>
+          <li>
+            <Link to="/teams">ทีม</Link> — เพิ่ม/แก้ไข/ลบทีม (ทั้งทีมเราและคู่แข่ง)
+          </li>
+          <li>
+            <Link to="/players">ผู้เล่น</Link> — เลือกทีมแล้วเพิ่ม/แก้/ลบชื่อ+เบอร์เท่านั้น
+          </li>
+          <li>
+            <Link to="/games">แมตช์</Link> — เลือกการแข่งขัน + ทีมเรา + คู่แข่ง · ไม่มีปุ่มเพิ่มทีมในฟอร์ม
+          </li>
+        </ul>
+      </section>
+
       <section id="steps" className="panel guide-section">
-        <h2>2) ลำดับงานแนะนำ</h2>
+        <h2>3) ลำดับงานแนะนำ (5 ขั้น)</h2>
         <FlowInfographic />
         <ol className="empty-steps guide-steps">
           <li>
@@ -156,13 +311,13 @@ export function GuidePage() {
           </li>
           <li>
             <Link to="/reports">รายงาน</Link> — ใบสถิตินัด · ประเมินผู้เล่น
-            (การ์ดโค้ช + แนวโน้มในลีก) · โซนยิง / โค้ช / ฤดูกาล
+            (การ์ดโค้ช + แนวโน้มในลีก) · โซนยิง / สรุปโค้ช / ฤดูกาล
           </li>
         </ol>
       </section>
 
       <section id="courtside" className="panel guide-section">
-        <h2>3) Courtside — บันทึกข้างสนาม</h2>
+        <h2>4) Courtside — บันทึกข้างสนาม</h2>
         <ShotFlowInfographic />
         <ul className="guide-bullets">
           <li>
@@ -177,12 +332,13 @@ export function GuidePage() {
           </li>
         </ul>
         <p className="muted report-note">
-          คีย์ลัดหลัก: F ฟาล์ว · T โทษ · U เปลี่ยนตัว · R/O รีบาวด์ · Esc ยกเลิก · Ctrl+Z เลิกทำ
+          คีย์ลัดหลัก: F ฟาล์ว · T โทษ · U เปลี่ยนตัว · R/O รีบาวด์ · Esc ยกเลิก ·
+          Ctrl+Z เลิกทำ
         </p>
       </section>
 
       <section id="shot-math" className="panel guide-section">
-        <h2>4) 2 คะแนน / 3 คะแนน ทำงานอย่างไร</h2>
+        <h2>5) 2 คะแนน / 3 คะแนน ทำงานอย่างไร</h2>
         <p className="muted">
           พิกัดคลิกเป็นสัดส่วนบนสนามเต็ม (ยาว 28 ม. × กว้าง 15 ม.) · ระบบดูว่าผู้ยิงเป็นทีมไหน
           แล้วเทียบกับ<strong>ตะกร้าที่ทีมนั้นกำลังบุก</strong> (สลับฝั่งหลังครึ่งแรก)
@@ -203,7 +359,7 @@ export function GuidePage() {
       </section>
 
       <section id="formulas" className="panel guide-section">
-        <h2>5) สูตรในใบสถิติ</h2>
+        <h2>6) สูตรในใบสถิติ</h2>
         <div className="guide-formula-grid">
           <div className="guide-formula">
             <h3>Field goal %</h3>
@@ -242,22 +398,36 @@ export function GuidePage() {
       </section>
 
       <section id="reports" className="panel guide-section">
-        <h2>6) รายงาน & ส่งออก</h2>
+        <h2>7) รายงาน & ส่งออก</h2>
         <ul className="guide-bullets">
           <li>
             รายงานหลัก = <strong>FIBA Box Score สองทีม</strong> (Match Information ·
-            ตารางสองระดับ · comparison · legend)
+            ตารางสองระดับ · comparison · legend) · ส่งออก Excel / PDF
           </li>
           <li>
             CMS และ Courtside ใช้ไฟล์ Excel/PDF ชุดเดียวกันจากแพ็กเกจรายงานกลาง
           </li>
           <li>
             ลิงก์แชร์สาธารณะเปิดได้โดยไม่ล็อกอิน — แท็บแรกคือใบสถิตินัดสองทีม
-            เหมือนใน CMS · มีสรุปโค้ชและแผนภาพการยิงด้วย
+            เหมือนใน CMS
           </li>
           <li>
-            แท็บ <strong>ประเมินผู้เล่น</strong> — การ์ดหลังเกม (สรุประดับจาก eFG +
-            ปริมาณช็อต, EF, +/−, โซน) และตารางแนวโน้มข้ามนัดในลีกเดียวกัน · ไม่มีนาทีเล่น
+            แท็บ <strong>ประเมินผู้เล่น</strong>:
+            <ul>
+              <li>
+                เลือกผู้เล่น → การ์ดหลังเกม: สรุประดับ{" "}
+                <strong>ดี / ปานกลาง / ต้องพัฒนา / ข้อมูลน้อย</strong> จากปริมาณช็อต +
+                eFG (ไม่ใช่เกรดเก็บในฐานข้อมูล)
+              </li>
+              <li>แสดง PTS, eFG%, TS%, REB, AST, EF, +/−, โซนยิง และคำแนะนำสั้น ๆ</li>
+              <li>
+                ตารางแนวโน้มข้ามนัดใน<strong>ลีกเดียวกัน</strong> (competition เดียวกับนัดที่เปิด)
+              </li>
+              <li>ยังไม่มีนาทีเล่น (Min) ในรอบนี้</li>
+            </ul>
+          </li>
+          <li>
+            แท็บอื่น: สรุปโค้ช · แผนภาพการยิง · โซนการยิง · มุมมองฤดูกาล
           </li>
           <li>
             <Link to="/rosters">บัญชีฤดูกาล</Link> เป็นตัวเลือกเสริม — ไม่แทนรายชื่อลงแข่งต่อแมตช์
@@ -266,7 +436,7 @@ export function GuidePage() {
       </section>
 
       <section id="cleanup" className="panel guide-section">
-        <h2>7) ลบแมตช์ / จบฤดูกาล — แนะนำอย่างไร</h2>
+        <h2>8) ลบแมตช์ / จบฤดูกาล — แนะนำอย่างไร</h2>
         <div className="guide-callout ok">
           <strong>แนะนำ: ลบทีละแมตช์ในหน้าแมตช์</strong>
           <p>
@@ -282,15 +452,27 @@ export function GuidePage() {
             (ต้องมี service role) เมื่อจบไตรมาส/ฤดูกาล
           </p>
         </div>
+        <p className="muted report-note">
+          การลบทีมหรือการแข่งขันทำที่หน้าแยก — ลบได้เมื่อยังไม่มีผู้เล่น/แมตช์อ้างอิง
+        </p>
       </section>
 
       <section id="faq" className="panel guide-section">
-        <h2>8) คำถามที่พบบ่อย</h2>
+        <h2>9) คำถามที่พบบ่อย</h2>
         <dl className="guide-faq">
+          <dt>เพิ่มลีกหรือทีมใหม่ทำที่ไหน?</dt>
+          <dd className="muted">
+            หน้า <Link to="/competitions">การแข่งขัน</Link> และ{" "}
+            <Link to="/teams">ทีม</Link> — ไม่ใช่ในฟอร์มสร้างแมตช์
+          </dd>
           <dt>คู่แข่งต้องเป็นทีมในระบบไหม?</dt>
           <dd className="muted">
-            ใช่ — เพิ่มทีมที่หน้า <Link to="/teams">ทีม</Link> และผู้เล่นที่หน้า{" "}
+            ใช่ — เพิ่มทีมที่หน้าทีม และผู้เล่นที่หน้า{" "}
             <Link to="/players">ผู้เล่น</Link> แล้วเลือกจาก dropdown ในหน้าแมตช์
+          </dd>
+          <dt>สรุประดับในประเมินผู้เล่นคือเกรดถาวรไหม?</dt>
+          <dd className="muted">
+            ไม่ใช่ — คำนวณสดจากสถิตินัดนั้น (eFG + จำนวนช็อต) เพื่อให้โค้ชอ่านเร็ว ไม่เก็บเกรดลงฐานข้อมูล
           </dd>
           <dt>ต้องสลับฝั่งก่อนทุกช็อตไหม?</dt>
           <dd className="muted">
@@ -308,7 +490,7 @@ export function GuidePage() {
       </section>
 
       <section id="troubleshoot" className="panel guide-section">
-        <h2>9) แก้ปัญหาเบื้องต้น</h2>
+        <h2>10) แก้ปัญหาเบื้องต้น</h2>
         <div className="table-scroll">
           <table className="data-table compact">
             <thead>
@@ -319,9 +501,17 @@ export function GuidePage() {
             </thead>
             <tbody>
               <tr>
-                <td>สร้างแมตช์ไม่ได้ / ไม่มีคู่แข่ง</td>
+                <td>สร้างแมตช์ไม่ได้ / ไม่มีคู่แข่งในรายการ</td>
                 <td>
-                  เพิ่มที่หน้า การแข่งขัน / ทีม / ผู้เล่น แล้วกลับมาเลือกในหน้าแมตช์
+                  ไปหน้า <Link to="/competitions">การแข่งขัน</Link> /{" "}
+                  <Link to="/teams">ทีม</Link> /{" "}
+                  <Link to="/players">ผู้เล่น</Link> แล้วกลับมาเลือกในแมตช์
+                </td>
+              </tr>
+              <tr>
+                <td>หาปุ่มเพิ่มทีมในหน้าแมตช์ไม่เจอ</td>
+                <td>
+                  ตามออกแบบใหม่ — เพิ่มทีมที่หน้าทีมเท่านั้น หน้าแมตช์มีแต่ dropdown
                 </td>
               </tr>
               <tr>
@@ -335,7 +525,7 @@ export function GuidePage() {
                 <td>เช็กเน็ตแล้วกดซิงก์ใหม่ — ข้อมูลในเครื่องยังอยู่</td>
               </tr>
               <tr>
-                <td>รายงานว่าง</td>
+                <td>รายงานว่าง / ประเมินผู้เล่นว่าง</td>
                 <td>บันทึกใน Courtside แล้วซิงก์ เปิดรายงานแมตช์นั้นอีกครั้ง</td>
               </tr>
               <tr>

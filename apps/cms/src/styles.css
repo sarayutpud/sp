@@ -1595,6 +1595,42 @@ a.btn:hover {
   gap: 0.75rem;
 }
 
+.guide-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.65rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.guide-quick-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  text-decoration: none;
+  color: var(--navy);
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+
+.guide-quick-card:hover {
+  border-color: var(--yellow-deep, #e6c200);
+  background: #fffdf2;
+  transform: translateY(-1px);
+}
+
+.guide-quick-card strong {
+  font-size: 0.95rem;
+}
+
+.guide-quick-card span {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .guide-compare-card {
   padding: 0.85rem 1rem;
   border-radius: 12px;
