@@ -1,0 +1,13 @@
+---
+description: SP monorepo conventions (Supabase, FIBA reports, Windows release)
+alwaysApply: true
+---
+
+# SP monorepo
+
+- Apps talk **directly to Supabase** (no separate API server).
+- Hosted DB already has final schema — **do not add incremental migrations** for hosted. Source of truth: `supabase/schema.sql`. Local CLI only: `supabase/migrations/` baseline + `local_role_grants`.
+- Primary match report is the **two-team FIBA Box Score** via `@sp/report-export` (Excel + PDF shared by CMS and Courtside).
+- Courtside Windows artifacts always copy to `D:\sp\releases\windows` (`pnpm --filter @sp/courtside tauri:release` or `scripts/build-courtside-windows.ps1`).
+- Purge match data with `node scripts/purge-match-data.mjs --dry-run` then without `--dry-run` (service role). Seed with `pnpm seed`.
+- Do not commit secrets (`.env`) or reference-only assets like `exam.jpg` unless explicitly requested.

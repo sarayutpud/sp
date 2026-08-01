@@ -66,6 +66,10 @@ body {
   border-bottom-width: 2px;
 }
 
+.topbar-brand-only {
+  justify-content: flex-start;
+}
+
 .topbar-compact .brand {
   font-size: 0.95rem;
 }
@@ -176,16 +180,17 @@ body {
 
 .court-chart-wrap {
   width: 100%;
-  max-width: min(100%, 760px);
-  max-height: min(46vh, 400px);
+  max-width: min(100%, 820px);
+  max-height: min(52vh, 460px);
   margin: 0 auto;
 }
 
 .court-chart-wrap > button {
   aspect-ratio: 28 / 15 !important;
-  max-height: min(46vh, 400px) !important;
+  max-height: min(52vh, 460px) !important;
   width: 100% !important;
   height: auto !important;
+  display: block;
 }
 
 .court-panel.awaiting-shot {
@@ -441,12 +446,50 @@ body {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   gap: 0.35rem;
-  align-items: stretch;
-  padding: 0.3rem 0.5rem 0.28rem;
+  align-items: start;
+  padding: 0.3rem 0.5rem 0.35rem;
   border-bottom: 2px solid var(--yellow);
   background:
     linear-gradient(180deg, rgba(255, 214, 0, 0.08), transparent 55%),
     rgba(0, 0, 0, 0.28);
+}
+
+.live-team-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.live-team-col.active .team-oncourt-strip {
+  border-color: rgba(255, 214, 0, 0.55);
+}
+
+.team-oncourt-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.2rem;
+  overflow-x: auto;
+  padding: 0.2rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+  scrollbar-width: thin;
+}
+
+.team-oncourt-strip .player-chip {
+  flex: 0 0 auto;
+  min-width: 2.6rem;
+  max-width: 3.6rem;
+  padding: 0.15rem 0.22rem;
+}
+
+.team-oncourt-strip .player-chip-num {
+  font-size: 0.9rem;
+}
+
+.team-oncourt-strip .player-chip-name {
+  font-size: 0.58rem;
 }
 
 .live-side {
@@ -462,7 +505,8 @@ body {
   padding: 0.28rem 0.45rem;
   cursor: pointer;
   text-align: left;
-  min-height: 52px;
+  min-height: 48px;
+  width: 100%;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -521,17 +565,51 @@ body {
   text-align: center;
 }
 
-.live-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.15rem 0.5rem 0.2rem;
-  border-bottom: 1px solid var(--line);
+.side-controls {
+  padding: 0.45rem 0.55rem !important;
 }
 
-.live-hint {
-  font-size: 0.68rem;
+.side-controls .sync {
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  margin-bottom: 0.35rem;
+}
+
+.side-sync-meta {
+  flex: 1 1 100%;
+  font-size: 0.7rem;
+  margin-left: 1.1rem;
+}
+
+.side-control-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+}
+
+.side-control-grid .btn,
+.manual-link-btn {
+  margin: 0;
+  text-align: center;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  font-size: 0.78rem;
+}
+
+.manual-link-btn {
+  border: 2px solid var(--line);
+  background: #24306f;
+  color: var(--yellow);
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.manual-link-btn:hover {
+  border-color: var(--yellow);
+  color: #fff;
 }
 
 .live-toolbar-actions {
@@ -579,19 +657,23 @@ body {
     flex-direction: row;
     flex-wrap: wrap;
     min-width: 0;
+    order: -1;
   }
 }
 
 @media (max-height: 820px) {
-  .live-hint,
-  .court-hotkey-hint,
   .live-recording {
     display: none;
   }
 
+  .court-hotkey-hint {
+    font-size: 0.62rem;
+    margin-bottom: 0.15rem;
+  }
+
   .court-chart-wrap,
   .court-chart-wrap > button {
-    max-height: min(40vh, 360px) !important;
+    max-height: min(44vh, 380px) !important;
   }
 
   .action-bar-grid .btn {

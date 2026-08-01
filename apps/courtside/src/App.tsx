@@ -781,9 +781,12 @@ export function App() {
     );
   }
 
+  const homeOnCourt = session.teams.HOME.onCourt;
+  const awayOnCourt = session.teams.AWAY.onCourt;
+
   return (
     <div className="shell">
-      <header className="topbar topbar-compact">
+      <header className="topbar topbar-compact topbar-brand-only">
         <div className="brand-wrap">
           <img className="brand-logo" src="/sp-logo.png" alt="SP FITNESS" />
           <div>
@@ -791,44 +794,37 @@ export function App() {
             <span className="brand-tag">FITNESS BANG SUE</span>
           </div>
         </div>
-        <div className="sync" data-state={online ? "on" : "off"}>
-          <span className="dot" />
-          {statusLabel}
-          <span className="muted">
-            {" "}
-            · {th.lastSynced}: {lastSynced}
-          </span>
-          <button
-            type="button"
-            className="btn tiny"
-            onClick={() => void syncNow(false)}
-          >
-            ซิงก์
-          </button>
-          <a
-            className="manual-link"
-            href="/user-manual.html"
-            target="_blank"
-            rel="noreferrer"
-          >
-            คู่มือ
-          </a>
-        </div>
       </header>
 
       <div className="live-scoreboard">
-        <button
-          type="button"
-          className={`live-side home ${session.activeSide === "HOME" ? "active" : ""}`}
-          onClick={() => {
-            if (wizard.step !== "idle") return;
-            void persistSession({ ...session, activeSide: "HOME" });
-          }}
+        <div
+          className={`live-team-col home ${session.activeSide === "HOME" ? "active" : ""}`}
         >
-          <span className="live-code">{session.homeTeamCode}</span>
-          <span className="live-name">{session.homeTeamName}</span>
-          <span className="live-pts">{scores.home}</span>
-        </button>
+          <button
+            type="button"
+            className={`live-side home ${session.activeSide === "HOME" ? "active" : ""}`}
+            onClick={() => {
+              if (wizard.step !== "idle") return;
+              void persistSession({ ...session, activeSide: "HOME" });
+            }}
+          >
+            <span className="live-code">{session.homeTeamCode}</span>
+            <span className="live-name">{session.homeTeamName}</span>
+            <span className="live-pts">{scores.home}</span>
+          </button>
+          <div className="team-oncourt-strip" aria-label={`${session.homeTeamCode} on court`}>
+            {homeOnCourt.map((p) => (
+              <PlayerChipBtn
+                key={p.id}
+                jersey={p.jerseyNumber}
+                name={p.name}
+                fouls={p.fouls}
+                className="player-chip-static tone-home"
+                disabled
+              />
+            ))}
+          </div>
+        </div>
         <div className="live-mid">
           <span className="chip">{th.periodLabel(session.period)}</span>
           <span className="chip tone-home">
@@ -850,36 +846,33 @@ export function App() {
               : session.awayTeamCode}
           </span>
         </div>
-        <button
-          type="button"
-          className={`live-side away ${session.activeSide === "AWAY" ? "active" : ""}`}
-          onClick={() => {
-            if (wizard.step !== "idle") return;
-            void persistSession({ ...session, activeSide: "AWAY" });
-          }}
+        <div
+          className={`live-team-col away ${session.activeSide === "AWAY" ? "active" : ""}`}
         >
-          <span className="live-code">{session.awayTeamCode}</span>
-          <span className="live-name">{session.awayTeamName}</span>
-          <span className="live-pts">{scores.away}</span>
-        </button>
-      </div>
-      <div className="live-toolbar">
-        <span className="muted live-hint">{th.scoreTapHint}</span>
-        <div className="live-toolbar-actions">
           <button
             type="button"
-            className="btn tiny"
-            onClick={() => void doEndPeriod()}
+            className={`live-side away ${session.activeSide === "AWAY" ? "active" : ""}`}
+            onClick={() => {
+              if (wizard.step !== "idle") return;
+              void persistSession({ ...session, activeSide: "AWAY" });
+            }}
           >
-            {th.endPeriod}
+            <span className="live-code">{session.awayTeamCode}</span>
+            <span className="live-name">{session.awayTeamName}</span>
+            <span className="live-pts">{scores.away}</span>
           </button>
-          <button
-            type="button"
-            className="btn tiny"
-            onClick={() => void handleChangeGame()}
-          >
-            {th.changeGame}
-          </button>
+          <div className="team-oncourt-strip" aria-label={`${session.awayTeamCode} on court`}>
+            {awayOnCourt.map((p) => (
+              <PlayerChipBtn
+                key={p.id}
+                jersey={p.jerseyNumber}
+                name={p.name}
+                fouls={p.fouls}
+                className="player-chip-static tone-away"
+                disabled
+              />
+            ))}
+          </div>
         </div>
       </div>
 
@@ -960,24 +953,10 @@ export function App() {
         <section
           className={`court-panel${wizard.step === "idle" ? " awaiting-shot" : ""}`}
         >
-          <div className="oncourt-strip">
-            <span className="oncourt-strip-label">{th.onCourtStrip}</span>
-            {onCourt.map((p) => (
-              <PlayerChipBtn
-                key={p.id}
-                jersey={p.jerseyNumber}
-                name={p.name}
-                fouls={p.fouls}
-                className="player-chip-static"
-                disabled
-              />
-            ))}
-          </div>
           {wizard.step === "idle" && (
-            <>
-              <h1>{th.shotPrompt}</h1>
-              <p className="muted court-hotkey-hint">{th.hotkeyHint}</p>
-            </>
+            <p className="muted court-hotkey-hint">
+              {th.shotPrompt} · {th.scoreTapHint}
+            </p>
           )}
           <div className="court-chart-wrap">
             <ShotChart
@@ -992,6 +971,46 @@ export function App() {
         </section>
 
         <aside className="side">
+          <div className="card side-controls">
+            <div className="sync" data-state={online ? "on" : "off"}>
+              <span className="dot" />
+              {statusLabel}
+              <span className="muted side-sync-meta">
+                {th.lastSynced}: {lastSynced}
+              </span>
+            </div>
+            <div className="side-control-grid">
+              <button
+                type="button"
+                className="btn tiny"
+                onClick={() => void syncNow(false)}
+              >
+                ซิงก์
+              </button>
+              <a
+                className="btn tiny manual-link-btn"
+                href="/user-manual.html"
+                target="_blank"
+                rel="noreferrer"
+              >
+                คู่มือ
+              </a>
+              <button
+                type="button"
+                className="btn tiny"
+                onClick={() => void doEndPeriod()}
+              >
+                {th.endPeriod}
+              </button>
+              <button
+                type="button"
+                className="btn tiny"
+                onClick={() => void handleChangeGame()}
+              >
+                {th.changeGame}
+              </button>
+            </div>
+          </div>
           <div className="card">
             <h2>อีเวนต์ล่าสุด ({events.length})</h2>
             <ol className="log">

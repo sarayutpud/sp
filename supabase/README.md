@@ -10,8 +10,8 @@
 | `seed.sql` | ใส่ข้อมูลตั้งต้น (ทีม, ผู้เล่น, แมตช์) |
 | `migrations/` | **เฉพาะ local CLI** (`supabase start` / `db reset`) — baseline = สำเนา `schema.sql` + role grants |
 | `../scripts/seed-default-data.mjs` | สร้าง user CMS + seed ครบ (`pnpm seed`) |
-| `../scripts/purge-match-data.mjs` | ล้างเฉพาะแมตช์/สถิติ (เก็บทีม/ผู้เล่น) |
-| `../scripts/add-game-staff.sql` | one-shot: เพิ่มคอลัมน์โค้ช/กรรมการบน `games` (รันครั้งเดียวบน hosted แล้วลบได้) |
+| `../scripts/purge-match-data.mjs` | ล้างเฉพาะแมตช์/สถิติ (เก็บทีม/ผู้เล่น) — `node scripts/purge-match-data.mjs --dry-run` |
+| `../scripts/build-courtside-windows.ps1` | build Courtside Windows → `releases/windows` |
 
 ## ติดตั้งโปรเจกต์ใหม่ (hosted)
 

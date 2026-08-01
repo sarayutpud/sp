@@ -53,9 +53,13 @@ export function ShotChart({
         ...style,
       }}
       onClick={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-        const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+        const el = e.currentTarget;
+        const rect = el.getBoundingClientRect();
+        // Prefer the SVG court box so CSS max-height / letterboxing cannot skew y.
+        const svg = el.querySelector("svg");
+        const box = svg?.getBoundingClientRect() ?? rect;
+        const x = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width));
+        const y = Math.min(1, Math.max(0, (e.clientY - box.top) / box.height));
         // Preliminary label uses focused team's basket; final 2P/3P is
         // recomputed when the shooter side is chosen.
         const isThree = isThreePointAttempt({ x, y }, basketSide);
@@ -205,24 +209,26 @@ export function ShotChart({
       <span
         style={{
           position: "absolute",
-          bottom: 8,
-          left: 8,
-          fontSize: 11,
+          top: 6,
+          right: 6,
+          fontSize: 10,
           color: "#1a237e",
           background: "rgba(255,214,0,0.92)",
-          padding: "2px 6px",
+          padding: "3px 7px",
           fontWeight: 700,
           borderRadius: 4,
-          maxWidth: "92%",
-          textAlign: "left",
+          maxWidth: "46%",
+          textAlign: "right",
           lineHeight: 1.25,
+          pointerEvents: "none",
         }}
       >
-        คลิกตำแหน่งช็อต · โฟกัสตะกร้า
-        {basketSide === "LEFT" ? "ซ้าย" : "ขวา"}
+        ตะกร้าโฟกัส {basketSide === "LEFT" ? "L" : "R"}
         <br />
         {homeCode}→{homeBasket === "LEFT" ? "L" : "R"} · {awayCode}→
-        {awayBasket === "LEFT" ? "L" : "R"} · 2P/3P ตามฝั่งที่ยิง
+        {awayBasket === "LEFT" ? "L" : "R"}
+        <br />
+        2P/3P ตามฝั่งยิง
       </span>
     </button>
   );

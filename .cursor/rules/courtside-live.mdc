@@ -1,0 +1,13 @@
+---
+description: Courtside live UI and shot chart 2P/3P rules
+globs: apps/courtside/**/*.{ts,tsx,css},packages/ui/src/shot-chart.tsx,packages/rules-engine/src/court.ts
+alwaysApply: false
+---
+
+# Courtside live + shot chart
+
+- Live layout: brand topbar; scoreboard with **on-court chips + fouls under each team**; action bar; taller court left; **right rail** for online/sync, manual, end period, change game, then events/exports.
+- Shot click coords are **normalized 0–1** from the SVG court box (avoid letterbox skew). Geometry: FIBA 28×15, 3PT arc 6.75m, corner strips 0.9m from sideline in `packages/rules-engine/src/court.ts`.
+- **2P/3P must be recomputed from the shooter's attack basket** when the player side is chosen (`resolveShotForSide`), not only from the focused team at click time. Preview both teams when useful.
+- Attack basket flips after halftime via `attackSideForPeriod`.
+- Yellow court badge stays **top-right** and short — do not cover baskets/arcs.
