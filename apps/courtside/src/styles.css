@@ -223,31 +223,53 @@ body {
   overflow: auto;
 }
 
-.court-status-card h2 {
-  margin: 0 0 0.3rem;
-  font-size: 0.85rem;
+.side-log-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.side-log-card .log {
+  flex: 1;
+  min-height: 2.5rem;
+  max-height: none;
+}
+
+.side-log-card .export-actions,
+.side-log-card .court-status-compact {
+  flex-shrink: 0;
+}
+
+.court-status-compact {
+  margin-top: 0.55rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(58, 70, 148, 0.55);
 }
 
 .court-status-hint {
-  margin: 0 0 0.35rem;
-  font-size: 0.72rem;
-  line-height: 1.35;
-  color: var(--text);
+  margin: 0 0 0.2rem;
+  font-size: 0.6rem;
+  line-height: 1.3;
+  color: var(--muted);
 }
 
 .court-status-focus {
-  margin: 0 0 0.2rem;
-  font-size: 0.78rem;
-  line-height: 1.35;
+  margin: 0 0 0.12rem;
+  font-size: 0.66rem;
+  line-height: 1.3;
+  color: var(--text);
 }
 
 .court-status-focus strong {
   color: var(--yellow);
+  font-weight: 700;
 }
 
 .court-status-note {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: 0.58rem;
+  line-height: 1.25;
 }
 
 .card {
@@ -599,28 +621,53 @@ body {
 }
 
 .side-controls {
-  padding: 0.45rem 0.55rem !important;
+  padding: 0.4rem 0.5rem !important;
 }
 
-.side-controls .sync {
-  flex-wrap: wrap;
-  font-size: 0.78rem;
+.side-sync-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
   margin-bottom: 0.35rem;
 }
 
-.side-sync-meta {
-  flex: 1 1 100%;
-  font-size: 0.7rem;
-  margin-left: 1.1rem;
+.side-controls .sync {
+  flex: 1;
+  min-width: 0;
+  flex-wrap: nowrap;
+  gap: 0.3rem;
+  font-size: 0.74rem;
+  margin: 0;
 }
 
-.side-control-grid {
+.side-sync-status {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.side-sync-meta {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.64rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: 0;
+}
+
+.side-sync-btn {
+  flex-shrink: 0;
+  min-width: 3.4rem;
+}
+
+.side-control-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.3rem;
 }
 
-.side-control-grid .btn,
+.side-control-row .btn,
 .manual-link-btn {
   margin: 0;
   text-align: center;
@@ -628,8 +675,9 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 32px;
-  font-size: 0.78rem;
+  min-height: 30px;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.3rem;
 }
 
 .manual-link-btn {
@@ -709,7 +757,11 @@ body {
   }
 
   .court-status-hint {
-    font-size: 0.66rem;
+    font-size: 0.56rem;
+  }
+
+  .side-controls .sync {
+    font-size: 0.68rem;
   }
 }
 

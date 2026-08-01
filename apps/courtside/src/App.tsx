@@ -967,21 +967,23 @@ export function App() {
 
         <aside className="side">
           <div className="card side-controls">
-            <div className="sync" data-state={online ? "on" : "off"}>
-              <span className="dot" />
-              {statusLabel}
-              <span className="muted side-sync-meta">
-                {th.lastSynced}: {lastSynced}
-              </span>
-            </div>
-            <div className="side-control-grid">
+            <div className="side-sync-row">
+              <div className="sync" data-state={online ? "on" : "off"}>
+                <span className="dot" />
+                <span className="side-sync-status">{statusLabel}</span>
+                <span className="muted side-sync-meta">
+                  {th.lastSynced}: {lastSynced}
+                </span>
+              </div>
               <button
                 type="button"
-                className="btn tiny"
+                className="btn tiny side-sync-btn"
                 onClick={() => void syncNow(false)}
               >
                 ซิงก์
               </button>
+            </div>
+            <div className="side-control-row">
               <a
                 className="btn tiny manual-link-btn"
                 href="/user-manual.html"
@@ -1006,25 +1008,7 @@ export function App() {
               </button>
             </div>
           </div>
-          <div className="card court-status-card">
-            <h2>สถานะสนาม</h2>
-            <p className="court-status-hint">
-              แตะสนาม · เลือกผู้ยิงทีหลัง · แตฝั่งทีมเพื่อโฟกัส · เลือกคนได้ทั้งสองทีม
-            </p>
-            <p className="court-status-focus">
-              ตะกร้าโฟกัส{" "}
-              <strong>{basketSide === "LEFT" ? "L" : "R"}</strong>
-              <span className="muted">
-                {" "}
-                · {session.homeTeamCode}→
-                {homeBasketSide === "LEFT" ? "L" : "R"} ·{" "}
-                {session.awayTeamCode}→
-                {awayBasketSide === "LEFT" ? "L" : "R"}
-              </span>
-            </p>
-            <p className="muted court-status-note">2P/3P ตามฝั่งที่ยิง</p>
-          </div>
-          <div className="card">
+          <div className="card side-log-card">
             <h2>อีเวนต์ล่าสุด ({events.length})</h2>
             <ol className="log">
               {[...events]
@@ -1064,6 +1048,23 @@ export function App() {
                   {th.backup}
                 </button>
               </div>
+            </div>
+            <div className="court-status-compact">
+              <p className="court-status-hint">
+                แตะสนาม · เลือกผู้ยิงทีหลัง · แตฝั่งทีมเพื่อโฟกัส · เลือกคนได้ทั้งสองทีม
+              </p>
+              <p className="court-status-focus">
+                ตะกร้าโฟกัส{" "}
+                <strong>{basketSide === "LEFT" ? "L" : "R"}</strong>
+                <span className="muted">
+                  {" "}
+                  · {session.homeTeamCode}→
+                  {homeBasketSide === "LEFT" ? "L" : "R"} ·{" "}
+                  {session.awayTeamCode}→
+                  {awayBasketSide === "LEFT" ? "L" : "R"}
+                </span>
+              </p>
+              <p className="muted court-status-note">2P/3P ตามฝั่งที่ยิง</p>
             </div>
           </div>
         </aside>
