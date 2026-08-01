@@ -994,7 +994,7 @@ export function App() {
               </a>
               <button
                 type="button"
-                className="btn tiny"
+                className="btn tiny info"
                 onClick={() => void doEndPeriod()}
               >
                 {th.endPeriod}
@@ -1049,22 +1049,17 @@ export function App() {
                 </button>
               </div>
             </div>
-            <div className="court-status-compact">
-              <p className="court-status-hint">
-                แตะสนาม · เลือกผู้ยิงทีหลัง · แตฝั่งทีมเพื่อโฟกัส · เลือกคนได้ทั้งสองทีม
-              </p>
+            <div className="court-status-compact" title="แตะสนาม · เลือกผู้ยิงทีหลัง · แตฝั่งทีมเพื่อโฟกัส · เลือกคนได้ทั้งสองทีม">
               <p className="court-status-focus">
-                ตะกร้าโฟกัส{" "}
-                <strong>{basketSide === "LEFT" ? "L" : "R"}</strong>
+                โฟกัส <strong>{basketSide === "LEFT" ? "L" : "R"}</strong>
                 <span className="muted">
                   {" "}
                   · {session.homeTeamCode}→
                   {homeBasketSide === "LEFT" ? "L" : "R"} ·{" "}
                   {session.awayTeamCode}→
-                  {awayBasketSide === "LEFT" ? "L" : "R"}
+                  {awayBasketSide === "LEFT" ? "L" : "R"} · 2P/3P ตามฝั่งยิง
                 </span>
               </p>
-              <p className="muted court-status-note">2P/3P ตามฝั่งที่ยิง</p>
             </div>
           </div>
         </aside>

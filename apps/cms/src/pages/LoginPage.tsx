@@ -37,7 +37,7 @@ export function LoginPage() {
       <div className="login-card">
         <img className="login-logo" src="/sp-logo.png" alt="SP FITNESS" />
         <p className="login-brand">SP FITNESS BANG SUE</p>
-        <h1>CMS</h1>
+        <h1>เข้าสู่ระบบ CMS</h1>
         <p className="muted login-sub">
           จัดการผู้เล่นสองทีม · แมตช์ · ใบสถิติ FIBA
         </p>
@@ -49,8 +49,8 @@ export function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
               autoComplete="username"
+              required
             />
           </label>
           <label>
@@ -59,15 +59,19 @@ export function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
               required
               minLength={6}
-              autoComplete="current-password"
             />
           </label>
+          {authMsg ? (
+            <p className="err" role="alert" aria-live="polite">
+              {authMsg}
+            </p>
+          ) : null}
           <button type="submit" className="btn primary block" disabled={busy}>
-            เข้าสู่ระบบ
+            {busy ? "กำลังเข้าสู่ระบบ…" : "เข้าสู่ระบบ"}
           </button>
-          {authMsg && <p className="err">{authMsg}</p>}
         </form>
       </div>
     </div>

@@ -413,6 +413,7 @@ export function GamesPage() {
               createMut.mutate();
             }}
           >
+            <div className="field-block">
             <label>
               การแข่งขัน
               <select
@@ -434,6 +435,7 @@ export function GamesPage() {
               <button
                 type="button"
                 className="btn tiny"
+                aria-label="เพิ่มการแข่งขัน"
                 onClick={() => {
                   setCompMode("create");
                   setCompName("");
@@ -445,6 +447,7 @@ export function GamesPage() {
               <button
                 type="button"
                 className="btn tiny"
+                aria-label="แก้ไขการแข่งขัน"
                 disabled={!activeCompetition}
                 onClick={() => {
                   if (!activeCompetition) return;
@@ -458,6 +461,7 @@ export function GamesPage() {
               <button
                 type="button"
                 className="btn tiny danger"
+                aria-label="ลบการแข่งขัน"
                 disabled={!activeCompId || compDeleteMut.isPending}
                 onClick={() => {
                   const label = activeCompetition
@@ -513,6 +517,8 @@ export function GamesPage() {
                 </div>
               </div>
             )}
+            </div>
+            <div className="field-block">
             <label>
               ทีมเรา
               <select
@@ -535,6 +541,7 @@ export function GamesPage() {
               <button
                 type="button"
                 className="btn tiny"
+                aria-label="เพิ่มทีมเรา"
                 onClick={() => {
                   setTeamTarget("our");
                   setTeamMode("create");
@@ -547,6 +554,7 @@ export function GamesPage() {
               <button
                 type="button"
                 className="btn tiny"
+                aria-label="แก้ไขทีมเรา"
                 disabled={!selectedOurTeam}
                 onClick={() => {
                   if (!selectedOurTeam) return;
@@ -561,6 +569,7 @@ export function GamesPage() {
               <button
                 type="button"
                 className="btn tiny danger"
+                aria-label="ลบทีมเรา"
                 disabled={!activeOurTeamId || teamDeleteMut.isPending}
                 onClick={() => {
                   if (!activeOurTeamId) return;
@@ -615,6 +624,8 @@ export function GamesPage() {
                 </div>
               </div>
             )}
+            </div>
+            <div className="field-block">
             <label>
               ทีมคู่แข่ง
               <select
@@ -640,6 +651,7 @@ export function GamesPage() {
               <button
                 type="button"
                 className="btn tiny"
+                aria-label="เพิ่มทีมคู่แข่ง"
                 onClick={() => {
                   setTeamTarget("opponent");
                   setTeamMode("create");
@@ -652,6 +664,7 @@ export function GamesPage() {
               <button
                 type="button"
                 className="btn tiny"
+                aria-label="แก้ไขทีมคู่แข่ง"
                 disabled={!selectedOpponentTeam}
                 onClick={() => {
                   if (!selectedOpponentTeam) return;
@@ -666,6 +679,7 @@ export function GamesPage() {
               <button
                 type="button"
                 className="btn tiny danger"
+                aria-label="ลบทีมคู่แข่ง"
                 disabled={!opponentTeamId || teamDeleteMut.isPending}
                 onClick={() => {
                   if (!opponentTeamId) return;
@@ -720,6 +734,7 @@ export function GamesPage() {
                 </div>
               </div>
             )}
+            </div>
             <p className="muted report-note">
               เพิ่ม / แก้ไข / ลบ การแข่งขันและทีมได้ที่นี่ — แล้วค่อยสร้างแมตช์
             </p>

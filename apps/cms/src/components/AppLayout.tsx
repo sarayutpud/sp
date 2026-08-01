@@ -3,11 +3,11 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 
 const NAV = [
-  { to: "/", label: "เริ่มต้น / คู่มือ", mark: "1", end: true },
-  { to: "/players", label: "ผู้เล่น", mark: "P" },
-  { to: "/games", label: "แมตช์", mark: "M" },
-  { to: "/reports", label: "รายงาน", mark: "Σ" },
-  { to: "/rosters", label: "บัญชีฤดูกาล", mark: "R", optional: true },
+  { to: "/", label: "เริ่มต้น / คู่มือ", mark: "ค", end: true },
+  { to: "/players", label: "ผู้เล่น", mark: "ผ" },
+  { to: "/games", label: "แมตช์", mark: "ม" },
+  { to: "/reports", label: "รายงาน", mark: "ร" },
+  { to: "/rosters", label: "บัญชีฤดูกาล", mark: "ฤ", optional: true },
 ] as const;
 
 export function AppLayout() {

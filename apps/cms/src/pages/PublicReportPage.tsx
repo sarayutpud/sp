@@ -2,7 +2,15 @@ import { ShotChartView } from "@sp/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { fetchGame, fetchPbp, fetchPlayers, fetchTeams } from "../lib/api";
+import { MatchBoxView } from "../components/MatchBoxView";
+import {
+  fetchGame,
+  fetchGameRosters,
+  fetchPbp,
+  fetchPeriodScores,
+  fetchPlayers,
+  fetchTeams,
+} from "../lib/api";
 import {
   buildCoachInsights,
   buildCoachPlayerLines,
@@ -10,24 +18,21 @@ import {
   buildTeamZones,
   fmtPct,
 } from "../lib/coach-reports";
-import {
-  buildFullBoxScore,
-  buildShotMarkers,
-  sumBoxLines,
-} from "../lib/stats-reports";
+import { buildCmsMatchBoxScore } from "../lib/match-box";
+import { buildShotMarkers } from "../lib/stats-reports";
 import { gameMatchLabel, gameSideLabel } from "../lib/types";
 
-type Tab = "insights" | "box" | "shotchart";
+type Tab = "box" | "insights" | "shotchart";
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: "box", label: "ใบสถิตินัด" },
   { id: "insights", label: "สรุปโค้ช" },
-  { id: "box", label: "Box Score" },
-  { id: "shotchart", label: "Shot Chart" },
+  { id: "shotchart", label: "แผนภาพการยิง" },
 ];
 
 export function PublicReportPage() {
   const { gameId = "" } = useParams();
-  const [tab, setTab] = useState<Tab>("insights");
+  const [tab, setTab] = useState<Tab>("box");
 
   const game = useQuery({
     queryKey: ["public-game", gameId],
@@ -45,6 +50,16 @@ export function PublicReportPage() {
     queryFn: () => fetchPlayers(),
     enabled: !!game.data,
   });
+  const periodScores = useQuery({
+    queryKey: ["period-scores", gameId],
+    queryFn: () => fetchPeriodScores(gameId),
+    enabled: !!gameId && !!game.data,
+  });
+  const gameRosters = useQuery({
+    queryKey: ["game-rosters", gameId],
+    queryFn: () => fetchGameRosters(gameId),
+    enabled: !!gameId && !!game.data,
+  });
 
   const teamMap = useMemo(
     () => new Map((teams.data ?? []).map((t) => [t.id, t.name])),
@@ -58,12 +73,28 @@ export function PublicReportPage() {
     ? gameMatchLabel(ourName, g.opponent_name, g.our_side)
     : "";
 
-  const fullBox = useMemo(() => {
-    if (!pbp.data || !players.data || !ourTeamId) return [];
-    return buildFullBoxScore(pbp.data, players.data, ourTeamId);
-  }, [pbp.data, players.data, ourTeamId]);
-
-  const boxTotals = useMemo(() => sumBoxLines(fullBox), [fullBox]);
+  const matchBox = useMemo(() => {
+    if (!g || !players.data || !teams.data) return null;
+    const homeStarters = (gameRosters.data ?? [])
+      .filter((r) => r.team_id === g.home_team_id && r.is_starter)
+      .map((r) => r.player_id);
+    const awayStarters = (gameRosters.data ?? [])
+      .filter((r) => r.team_id === g.away_team_id && r.is_starter)
+      .map((r) => r.player_id);
+    return buildCmsMatchBoxScore({
+      game: g,
+      events: pbp.data ?? [],
+      players: players.data,
+      teams: teams.data,
+      periodScores: (periodScores.data ?? []).map((score) => ({
+        period: score.period,
+        homePoints: score.home_points,
+        awayPoints: score.away_points,
+      })),
+      homeStarters,
+      awayStarters,
+    });
+  }, [g, players.data, teams.data, pbp.data, periodScores.data, gameRosters.data]);
 
   const playerLines = useMemo(() => {
     if (!pbp.data || !players.data || !ourTeamId) return [];
@@ -94,6 +125,11 @@ export function PublicReportPage() {
   }, [pbp.data, ourTeamId]);
 
   const hasEvents = (pbp.data?.length ?? 0) > 0;
+  const hasBoxData =
+    !!matchBox &&
+    (hasEvents ||
+      matchBox.home.players.length > 0 ||
+      matchBox.away.players.length > 0);
   const madeShots = shotMarkers.filter((s) => s.made).length;
 
   return (
@@ -103,7 +139,7 @@ export function PublicReportPage() {
           <img src="/sp-logo.png" alt="SP FITNESS" />
           <div>
             <strong>SP FITNESS</strong>
-            <span>รายงานแมตช์สาธารณะ</span>
+            <span>ใบสถิตินัด · FIBA</span>
           </div>
         </div>
         <Link to="/login" className="btn tiny ghost">
@@ -150,9 +186,19 @@ export function PublicReportPage() {
             </div>
 
             {pbp.isLoading && <p className="muted">โหลดสถิติ…</p>}
-            {!pbp.isLoading && !hasEvents && (
+            {!pbp.isLoading && !hasEvents && tab !== "box" && (
               <section className="panel">
                 <p className="muted">ยังไม่มีสถิติในแมตช์นี้ — รอซิงก์จาก Courtside</p>
+              </section>
+            )}
+
+            {tab === "box" && (
+              <section className="panel box-score-panel">
+                {!hasBoxData ? (
+                  <p className="muted">ยังไม่มีใบสถิติ — รอซิงก์จาก Courtside</p>
+                ) : (
+                  matchBox && <MatchBoxView box={matchBox} />
+                )}
               </section>
             )}
 
@@ -194,74 +240,9 @@ export function PublicReportPage() {
               </section>
             )}
 
-            {hasEvents && tab === "box" && (
-              <section className="panel">
-                <h2>Box Score — {ourName}</h2>
-                <div className="table-scroll">
-                  <table className="data-table wrap-cells">
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>ผู้เล่น</th>
-                        <th>PTS</th>
-                        <th>REB</th>
-                        <th>AST</th>
-                        <th>FG</th>
-                        <th>3PT</th>
-                        <th>FT</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fullBox.map((l) => (
-                        <tr key={l.playerId}>
-                          <td>{l.jersey}</td>
-                          <td>{l.playerName}</td>
-                          <td>
-                            <strong>{l.pts}</strong>
-                          </td>
-                          <td>{l.reb}</td>
-                          <td>{l.ast}</td>
-                          <td>
-                            {l.fgm}/{l.fga}
-                          </td>
-                          <td>
-                            {l.tpm}/{l.tpa}
-                          </td>
-                          <td>
-                            {l.ftm}/{l.fta}
-                          </td>
-                        </tr>
-                      ))}
-                      {boxTotals && (
-                        <tr className="total-row">
-                          <td colSpan={2}>
-                            <strong>รวมทีม</strong>
-                          </td>
-                          <td>
-                            <strong>{boxTotals.pts}</strong>
-                          </td>
-                          <td>{boxTotals.reb}</td>
-                          <td>{boxTotals.ast}</td>
-                          <td>
-                            {boxTotals.fgm}/{boxTotals.fga}
-                          </td>
-                          <td>
-                            {boxTotals.tpm}/{boxTotals.tpa}
-                          </td>
-                          <td>
-                            {boxTotals.ftm}/{boxTotals.fta}
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
-
             {hasEvents && tab === "shotchart" && (
               <section className="panel">
-                <h2>Shot Chart — {ourName}</h2>
+                <h2>แผนภาพการยิง — {ourName}</h2>
                 {shotMarkers.length === 0 ? (
                   <p className="muted">ยังไม่มีพิกัดการยิง</p>
                 ) : (
@@ -298,7 +279,7 @@ export function PublicReportPage() {
       </main>
 
       <footer className="public-report-foot muted">
-        สร้างด้วย SP CMS · แชร์ได้โดยไม่ต้องล็อกอิน
+        SP FITNESS · รายงานสาธารณะ · ไม่ต้องล็อกอิน
       </footer>
     </div>
   );

@@ -348,7 +348,7 @@ export function ReportsPage() {
                           <span className="muted">{when}</span>
                         </span>
                       </span>
-                      <span className={`btn tiny ${selected ? "primary" : ""}`}>
+                      <span className={`match-pick-chip ${selected ? "selected" : ""}`}>
                         {selected ? "กำลังดู" : "เปิด"}
                       </span>
                     </button>
@@ -391,41 +391,6 @@ export function ReportsPage() {
                   ))}
                 </div>
               </div>
-              <section className="panel">
-                <h2>แชร์นัดนี้</h2>
-                <p className="muted report-note">
-                  ส่งลิงก์สาธารณะได้โดยไม่ต้องล็อกอิน
-                </p>
-                <div className="public-link-row">
-                  <input
-                    className="public-link-input"
-                    readOnly
-                    value={publicUrl}
-                    aria-label="ลิงก์สาธารณะ"
-                    onFocus={(event) => event.currentTarget.select()}
-                  />
-                  <button
-                    type="button"
-                    className="btn primary"
-                    onClick={() =>
-                      void copyText(publicUrl).then((ok) =>
-                        setShareMsg(ok ? "คัดลอกลิงก์แล้ว" : "คัดลอกไม่สำเร็จ"),
-                      )
-                    }
-                  >
-                    คัดลอก
-                  </button>
-                  <a
-                    className="btn"
-                    href={publicUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    เปิด
-                  </a>
-                </div>
-                {shareMsg && <p className="muted">{shareMsg}</p>}
-              </section>
               <div ref={reportCaptureRef} className="report-capture-root">
                 {pbp.isLoading && <p className="muted">โหลดสถิติ…</p>}
                 {pbp.isError && (
@@ -449,7 +414,7 @@ export function ReportsPage() {
                       </button>
                       <button
                         type="button"
-                        className="btn"
+                        className="btn primary"
                         disabled={!hasBoxData}
                         onClick={() =>
                           void downloadMatchBoxPdf(
@@ -462,7 +427,7 @@ export function ReportsPage() {
                       </button>
                       <button
                         type="button"
-                        className="btn"
+                        className="btn tiny ghost"
                         disabled={exportingImage}
                         onClick={() => void exportReportImage()}
                       >
@@ -470,7 +435,7 @@ export function ReportsPage() {
                       </button>
                       <button
                         type="button"
-                        className="btn"
+                        className="btn tiny ghost"
                         disabled={!hasEvents}
                         onClick={exportCsv}
                       >
@@ -647,6 +612,41 @@ export function ReportsPage() {
                   </>
                 )}
               </div>
+              <section className="panel share-panel">
+                <div className="share-panel-head">
+                  <h2>แชร์นัดนี้</h2>
+                  <p className="muted report-note">ลิงก์สาธารณะ · ไม่ต้องล็อกอิน</p>
+                </div>
+                <div className="public-link-row">
+                  <input
+                    className="public-link-input"
+                    readOnly
+                    value={publicUrl}
+                    aria-label="ลิงก์สาธารณะ"
+                    onFocus={(event) => event.currentTarget.select()}
+                  />
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() =>
+                      void copyText(publicUrl).then((ok) =>
+                        setShareMsg(ok ? "คัดลอกลิงก์แล้ว" : "คัดลอกไม่สำเร็จ"),
+                      )
+                    }
+                  >
+                    คัดลอก
+                  </button>
+                  <a
+                    className="btn"
+                    href={publicUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    เปิด
+                  </a>
+                </div>
+                {shareMsg && <p className="muted">{shareMsg}</p>}
+              </section>
             </>
           )}
         </>
