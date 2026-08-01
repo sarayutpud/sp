@@ -1,7 +1,7 @@
 import { ShotChartView } from "@sp/ui";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { toPng } from "html-to-image";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { MatchBoxView } from "../components/MatchBoxView";
 import {
@@ -29,6 +29,10 @@ import {
 } from "../lib/export-reports";
 import { buildCmsMatchBoxScore } from "../lib/match-box";
 import {
+  buildPlayerEvalCard,
+  buildPlayerEvalTrend,
+} from "../lib/player-eval";
+import {
   buildMatchShareCsv,
   copyText,
   downloadElementPng,
@@ -44,13 +48,14 @@ import {
 import { gameMatchLabel, gameStatusLabel } from "../lib/types";
 import { SeasonReportPage } from "./SeasonReportPage";
 
-type ReportTab = "box" | "insights" | "shotchart" | "zones";
+type ReportTab = "box" | "insights" | "shotchart" | "zones" | "player";
 type ReportScope = "match" | "season";
 
 const RECENT_LIMIT = 10;
 const TABS: { id: ReportTab; label: string }[] = [
   { id: "box", label: "ใบสถิตินัด" },
   { id: "insights", label: "สรุปโค้ช" },
+  { id: "player", label: "ประเมินผู้เล่น" },
   { id: "shotchart", label: "แผนภาพการยิง" },
   { id: "zones", label: "โซนการยิง" },
 ];
@@ -62,6 +67,7 @@ export function ReportsPage() {
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [teamFilter, setTeamFilter] = useState("");
   const [tab, setTab] = useState<ReportTab>("box");
+  const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [shareMsg, setShareMsg] = useState("");
   const [exportingImage, setExportingImage] = useState(false);
   const reportCaptureRef = useRef<HTMLDivElement>(null);
@@ -201,6 +207,95 @@ export function ReportsPage() {
       matchBox.away.players.length > 0);
   const hasShots = shotMarkers.length > 0;
   const madeShots = shotMarkers.filter((shot) => shot.made).length;
+
+  useEffect(() => {
+    if (fullBox.length === 0) {
+      setSelectedPlayerId("");
+      return;
+    }
+    if (
+      selectedPlayerId &&
+      fullBox.some((line) => line.playerId === selectedPlayerId)
+    ) {
+      return;
+    }
+    const top = [...fullBox].sort((a, b) => b.pts - a.pts)[0];
+    setSelectedPlayerId(top?.playerId ?? "");
+  }, [fullBox, selectedPlayerId, selectedGameId, activeTeamId]);
+
+  const fibaPlayerLine = useMemo(() => {
+    if (!matchBox || !selectedPlayerId) return null;
+    return (
+      matchBox.home.players.find((p) => p.playerId === selectedPlayerId) ??
+      matchBox.away.players.find((p) => p.playerId === selectedPlayerId) ??
+      null
+    );
+  }, [matchBox, selectedPlayerId]);
+
+  const playerEvalCard = useMemo(() => {
+    const box = fullBox.find((line) => line.playerId === selectedPlayerId);
+    if (!box) return null;
+    const coach =
+      playerLines.find((line) => line.playerId === selectedPlayerId) ?? null;
+    const zones =
+      playerZones.find((row) => row.playerId === selectedPlayerId)?.zones ?? [];
+    return buildPlayerEvalCard({
+      box,
+      coach,
+      zones,
+      ef: fibaPlayerLine?.ef ?? null,
+      plusMinus: fibaPlayerLine?.plusMinus ?? null,
+    });
+  }, [fullBox, selectedPlayerId, playerLines, playerZones, fibaPlayerLine]);
+
+  const competitionGames = useMemo(() => {
+    if (!selectedGame) return [];
+    return (games.data ?? [])
+      .filter(
+        (game) =>
+          game.competition_id === selectedGame.competition_id &&
+          game.our_team_id === activeTeamId,
+      )
+      .slice(0, 12);
+  }, [games.data, selectedGame, activeTeamId]);
+
+  const trendPbpQueries = useQueries({
+    queries: competitionGames.map((game) => ({
+      queryKey: ["pbp", game.id],
+      queryFn: () => fetchPbp(game.id),
+      enabled: tab === "player" && !!selectedPlayerId && competitionGames.length > 0,
+    })),
+  });
+
+  const playerTrend = useMemo(() => {
+    if (!allPlayers.data || !selectedPlayerId) return [];
+    const rows = competitionGames.map((game, index) => {
+      const events = trendPbpQueries[index]?.data;
+      const box = events
+        ? buildFullBoxScore(events, allPlayers.data!, activeTeamId).find(
+            (line) => line.playerId === selectedPlayerId,
+          )
+        : undefined;
+      return {
+        gameId: game.id,
+        label: gameMatchLabel(
+          teamMap.get(game.our_team_id) ?? "?",
+          game.opponent_name,
+          game.our_side,
+        ),
+        scheduledAt: game.scheduled_at,
+        box,
+      };
+    });
+    return buildPlayerEvalTrend(rows);
+  }, [
+    competitionGames,
+    trendPbpQueries,
+    allPlayers.data,
+    selectedPlayerId,
+    activeTeamId,
+    teamMap,
+  ]);
   const sharePayload = useMemo(
     () =>
       selectedGame
@@ -477,6 +572,170 @@ export function ReportsPage() {
                           <strong>{fmtPct(teamTotals.ts)}</strong>
                         </div>
                       </div>
+                    )}
+                  </section>
+                )}
+                {tab === "player" && (
+                  <section className="panel player-eval-panel">
+                    <div className="toolbar">
+                      <label className="field-inline">
+                        ผู้เล่น
+                        <select
+                          value={selectedPlayerId}
+                          onChange={(e) => setSelectedPlayerId(e.target.value)}
+                          disabled={fullBox.length === 0}
+                        >
+                          {fullBox.length === 0 && (
+                            <option value="">— ไม่มีข้อมูล —</option>
+                          )}
+                          {[...fullBox]
+                            .sort((a, b) => b.pts - a.pts)
+                            .map((line) => (
+                              <option key={line.playerId} value={line.playerId}>
+                                #{line.jersey} {line.playerName} ({line.pts} PTS)
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                    </div>
+                    {!playerEvalCard ? (
+                      <p className="muted">
+                        ยังไม่มีสถิติผู้เล่นในนัดนี้ — ซิงก์จาก Courtside ก่อน
+                      </p>
+                    ) : (
+                      <>
+                        <article className="player-eval-card">
+                          <header className="player-eval-head">
+                            <div>
+                              <h2>
+                                #{playerEvalCard.jersey}{" "}
+                                {playerEvalCard.playerName}
+                              </h2>
+                              <p className="muted">
+                                {matchLabel} · {teamMap.get(activeTeamId)}
+                              </p>
+                            </div>
+                            <span
+                              className={`player-eval-band band-${playerEvalCard.band === "ดี" ? "good" : playerEvalCard.band === "ต้องพัฒนา" ? "warn" : "mid"}`}
+                            >
+                              {playerEvalCard.band}
+                            </span>
+                          </header>
+                          <div className="stat-cards">
+                            <div className="stat-card">
+                              <span className="stat-label">PTS</span>
+                              <strong>{playerEvalCard.pts}</strong>
+                            </div>
+                            <div className="stat-card">
+                              <span className="stat-label">eFG%</span>
+                              <strong>{fmtPct(playerEvalCard.efg)}</strong>
+                            </div>
+                            <div className="stat-card">
+                              <span className="stat-label">TS%</span>
+                              <strong>{fmtPct(playerEvalCard.ts)}</strong>
+                            </div>
+                            <div className="stat-card">
+                              <span className="stat-label">REB</span>
+                              <strong>{playerEvalCard.reb}</strong>
+                            </div>
+                            <div className="stat-card">
+                              <span className="stat-label">AST</span>
+                              <strong>{playerEvalCard.ast}</strong>
+                            </div>
+                            <div className="stat-card">
+                              <span className="stat-label">EF</span>
+                              <strong>
+                                {playerEvalCard.ef ?? "—"}
+                              </strong>
+                            </div>
+                            <div className="stat-card">
+                              <span className="stat-label">+/−</span>
+                              <strong>
+                                {playerEvalCard.plusMinus == null
+                                  ? "—"
+                                  : playerEvalCard.plusMinus > 0
+                                    ? `+${playerEvalCard.plusMinus}`
+                                    : playerEvalCard.plusMinus}
+                              </strong>
+                            </div>
+                          </div>
+                          <p className="muted report-note">
+                            FG {playerEvalCard.fgm}/{playerEvalCard.fga} · 3PT{" "}
+                            {playerEvalCard.tpm}/{playerEvalCard.tpa} · FT{" "}
+                            {playerEvalCard.ftm}/{playerEvalCard.fta} · STL{" "}
+                            {playerEvalCard.stl} · BLK {playerEvalCard.blk} · TO{" "}
+                            {playerEvalCard.tov} · PF {playerEvalCard.pf}
+                          </p>
+                          {playerEvalCard.zones.some((z) => z.fga > 0) && (
+                            <div className="player-eval-zones">
+                              {playerEvalCard.zones
+                                .filter((z) => z.fga > 0)
+                                .map((z) => (
+                                  <span key={z.zone} className="player-eval-zone">
+                                    {z.label} {z.fgm}/{z.fga} ({fmtPct(z.pct)})
+                                  </span>
+                                ))}
+                            </div>
+                          )}
+                          <ul className="insight-list">
+                            {playerEvalCard.tips.map((tip, index) => (
+                              // biome-ignore lint/suspicious/noArrayIndexKey: ordered tips
+                              <li key={index} className="insight insight-info">
+                                {tip}
+                              </li>
+                            ))}
+                          </ul>
+                        </article>
+                        <h3 className="player-eval-trend-title">
+                          แนวโน้มในลีกเดียวกัน ({playerTrend.length} นัด)
+                        </h3>
+                        {trendPbpQueries.some((q) => q.isLoading) && (
+                          <p className="muted">โหลดสถิติข้ามนัด…</p>
+                        )}
+                        {playerTrend.length === 0 ? (
+                          <p className="muted">
+                            ยังไม่มีนัดอื่นในลีกนี้ที่มีสถิติของผู้เล่นคนนี้
+                          </p>
+                        ) : (
+                          <div className="table-scroll">
+                            <table className="data-table compact">
+                              <thead>
+                                <tr>
+                                  <th>นัด</th>
+                                  <th>PTS</th>
+                                  <th>eFG%</th>
+                                  <th>REB</th>
+                                  <th>AST</th>
+                                  <th>FGA</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {playerTrend.map((row) => (
+                                  <tr key={row.gameId}>
+                                    <td className="cell-stack">
+                                      <span className="cell-primary">
+                                        {row.label}
+                                      </span>
+                                      <span className="cell-muted">
+                                        {row.scheduledAt
+                                          ? new Date(
+                                              row.scheduledAt,
+                                            ).toLocaleDateString("th-TH")
+                                          : "—"}
+                                      </span>
+                                    </td>
+                                    <td>{row.pts}</td>
+                                    <td>{fmtPct(row.efg)}</td>
+                                    <td>{row.reb}</td>
+                                    <td>{row.ast}</td>
+                                    <td>{row.fga}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </>
                     )}
                   </section>
                 )}

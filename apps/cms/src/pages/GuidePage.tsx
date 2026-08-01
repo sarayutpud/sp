@@ -2,13 +2,14 @@ import { Link } from "react-router-dom";
 
 function FlowInfographic() {
   const steps = [
-    { n: "1", title: "ผู้เล่น", sub: "สองทีม" },
-    { n: "2", title: "แมตช์", sub: "รายชื่อ 5+5" },
-    { n: "3", title: "Courtside", sub: "บันทึก + ซิงก์" },
-    { n: "4", title: "รายงาน", sub: "FIBA Box" },
+    { n: "1", title: "ลีก·ทีม", sub: "ตั้งต้น" },
+    { n: "2", title: "ผู้เล่น", sub: "สองทีม" },
+    { n: "3", title: "แมตช์", sub: "รายชื่อ 5+5" },
+    { n: "4", title: "Courtside", sub: "บันทึก + ซิงก์" },
+    { n: "5", title: "รายงาน", sub: "FIBA · ประเมิน" },
   ];
   return (
-    <div className="guide-flow" role="img" aria-label="ลำดับงาน 4 ขั้น">
+    <div className="guide-flow" role="img" aria-label="ลำดับงาน 5 ขั้น">
       {steps.map((s, i) => (
         <div key={s.n} className="guide-flow-item">
           <div className="guide-flow-node">
@@ -110,9 +111,14 @@ export function GuidePage() {
           <div className="guide-compare-card">
             <h3>CMS (เว็บนี้)</h3>
             <ul>
-              <li>เพิ่ม/แก้/ลบ การแข่งขัน และทีม ในหน้าแมตช์</li>
-              <li>เพิ่มผู้เล่นทั้งสองทีม · จัดรายชื่อลงแข่ง</li>
-              <li>ดู/ส่งออกใบสถิติ FIBA · แชร์ลิงก์สาธารณะ</li>
+              <li>
+                หน้าแยก:{" "}
+                <Link to="/competitions">การแข่งขัน</Link> ·{" "}
+                <Link to="/teams">ทีม</Link> ·{" "}
+                <Link to="/players">ผู้เล่น</Link>
+              </li>
+              <li>สร้างแมตช์ · จัดรายชื่อลงแข่งทั้งสองฝั่ง</li>
+              <li>ใบสถิติ FIBA · ประเมินผู้เล่น · แชร์ลิงก์</li>
               <li>ลบแมตช์ที่จบแล้วได้ (ยืนยันก่อน)</li>
             </ul>
           </div>
@@ -132,23 +138,25 @@ export function GuidePage() {
         <FlowInfographic />
         <ol className="empty-steps guide-steps">
           <li>
-            <Link to="/players">ผู้เล่น</Link> — เพิ่มชื่อ + เบอร์ของ
-            <strong> ทั้งสองทีม</strong> (ทีมเราและคู่แข่ง) ให้ครบก่อนสร้างแมตช์
-            — ในหน้าแมตช์สามารถเพิ่ม/แก้ไข/ลบ <strong>การแข่งขัน</strong> และ{" "}
-            <strong>ทีม</strong> ได้โดยตรง
+            <Link to="/competitions">การแข่งขัน</Link> — เพิ่มลีก/ทัวร์นาเมนต์ ·{" "}
+            <Link to="/teams">ทีม</Link> — เพิ่มทีมเราและคู่แข่ง
           </li>
           <li>
-            <Link to="/games">แมตช์</Link> — เลือกทีมเรา + คู่แข่งจาก dropdown
-            (ต้องเป็นทีมในระบบ) · เหย้า/เยือน · โค้ช/กรรมการได้ · กด{" "}
-            <strong>จัดรายชื่อ</strong> ทั้งแท็บทีมเราและคู่แข่ง (ตัวจริงไม่เกิน 5 คน/ทีม)
+            <Link to="/players">ผู้เล่น</Link> — เพิ่มชื่อ + เบอร์ของ
+            <strong> ทั้งสองทีม</strong> ให้ครบก่อนสร้างแมตช์
+          </li>
+          <li>
+            <Link to="/games">แมตช์</Link> — เลือกการแข่งขัน + ทีมเรา + คู่แข่งจาก
+            dropdown · เหย้า/เยือน · กด <strong>จัดรายชื่อ</strong> ทั้งสองแท็บ
+            (ตัวจริงไม่เกิน 5 คน/ทีม)
           </li>
           <li>
             เปิด <strong>Courtside</strong> — เลือกแมตช์ → 5 คนบนสนามทั้งเหย้าและเยือน →
             เริ่มบันทึก → กดซิงก์เมื่อมีเน็ต
           </li>
           <li>
-            <Link to="/reports">รายงาน</Link> — ใบสถิตินัดสองทีม · Excel / PDF / PNG ·
-            แท็บโซนยิง / โค้ช / ฤดูกาลตามต้องการ
+            <Link to="/reports">รายงาน</Link> — ใบสถิตินัด · ประเมินผู้เล่น
+            (การ์ดโค้ช + แนวโน้มในลีก) · โซนยิง / โค้ช / ฤดูกาล
           </li>
         </ol>
       </section>
@@ -248,6 +256,10 @@ export function GuidePage() {
             เหมือนใน CMS · มีสรุปโค้ชและแผนภาพการยิงด้วย
           </li>
           <li>
+            แท็บ <strong>ประเมินผู้เล่น</strong> — การ์ดหลังเกม (สรุประดับจาก eFG +
+            ปริมาณช็อต, EF, +/−, โซน) และตารางแนวโน้มข้ามนัดในลีกเดียวกัน · ไม่มีนาทีเล่น
+          </li>
+          <li>
             <Link to="/rosters">บัญชีฤดูกาล</Link> เป็นตัวเลือกเสริม — ไม่แทนรายชื่อลงแข่งต่อแมตช์
           </li>
         </ul>
@@ -277,8 +289,8 @@ export function GuidePage() {
         <dl className="guide-faq">
           <dt>คู่แข่งต้องเป็นทีมในระบบไหม?</dt>
           <dd className="muted">
-            ใช่ — เลือกจากรายการทีม ถ้ายังไม่มี กดเพิ่ม/แก้ไขทีมได้ในหน้าแมตช์
-            (ผู้เล่นยังเพิ่มที่หน้าผู้เล่น)
+            ใช่ — เพิ่มทีมที่หน้า <Link to="/teams">ทีม</Link> และผู้เล่นที่หน้า{" "}
+            <Link to="/players">ผู้เล่น</Link> แล้วเลือกจาก dropdown ในหน้าแมตช์
           </dd>
           <dt>ต้องสลับฝั่งก่อนทุกช็อตไหม?</dt>
           <dd className="muted">
@@ -309,7 +321,7 @@ export function GuidePage() {
               <tr>
                 <td>สร้างแมตช์ไม่ได้ / ไม่มีคู่แข่ง</td>
                 <td>
-                  ในหน้าแมตช์ กดเพิ่มทีม/การแข่งขัน หรือเพิ่มผู้เล่นในหน้าผู้เล่นก่อน
+                  เพิ่มที่หน้า การแข่งขัน / ทีม / ผู้เล่น แล้วกลับมาเลือกในหน้าแมตช์
                 </td>
               </tr>
               <tr>

@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { CompetitionsPage } from "./pages/CompetitionsPage";
 import { GamesPage } from "./pages/GamesPage";
 import { GuidePage } from "./pages/GuidePage";
 import { LoginPage } from "./pages/LoginPage";
@@ -8,6 +9,7 @@ import { PlayersPage } from "./pages/PlayersPage";
 import { PublicReportPage } from "./pages/PublicReportPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { RostersPage } from "./pages/RostersPage";
+import { TeamsPage } from "./pages/TeamsPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
@@ -37,6 +39,8 @@ export function App() {
             }
           >
             <Route index element={<GuidePage />} />
+            <Route path="competitions" element={<CompetitionsPage />} />
+            <Route path="teams" element={<TeamsPage />} />
             <Route path="players" element={<PlayersPage />} />
             <Route path="rosters" element={<RostersPage />} />
             <Route path="games" element={<GamesPage />} />

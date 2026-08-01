@@ -4,6 +4,8 @@ import { useAuth } from "../lib/auth";
 
 const NAV = [
   { to: "/", label: "เริ่มต้น / คู่มือ", mark: "ค", end: true },
+  { to: "/competitions", label: "การแข่งขัน", mark: "ล" },
+  { to: "/teams", label: "ทีม", mark: "ท" },
   { to: "/players", label: "ผู้เล่น", mark: "ผ" },
   { to: "/games", label: "แมตช์", mark: "ม" },
   { to: "/reports", label: "รายงาน", mark: "ร" },
