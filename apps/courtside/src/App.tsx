@@ -953,11 +953,6 @@ export function App() {
         <section
           className={`court-panel${wizard.step === "idle" ? " awaiting-shot" : ""}`}
         >
-          {wizard.step === "idle" && (
-            <p className="muted court-hotkey-hint">
-              {th.shotPrompt} · {th.scoreTapHint}
-            </p>
-          )}
           <div className="court-chart-wrap">
             <ShotChart
               basketSide={basketSide}
@@ -1010,6 +1005,24 @@ export function App() {
                 {th.changeGame}
               </button>
             </div>
+          </div>
+          <div className="card court-status-card">
+            <h2>สถานะสนาม</h2>
+            <p className="court-status-hint">
+              แตะสนาม · เลือกผู้ยิงทีหลัง · แตฝั่งทีมเพื่อโฟกัส · เลือกคนได้ทั้งสองทีม
+            </p>
+            <p className="court-status-focus">
+              ตะกร้าโฟกัส{" "}
+              <strong>{basketSide === "LEFT" ? "L" : "R"}</strong>
+              <span className="muted">
+                {" "}
+                · {session.homeTeamCode}→
+                {homeBasketSide === "LEFT" ? "L" : "R"} ·{" "}
+                {session.awayTeamCode}→
+                {awayBasketSide === "LEFT" ? "L" : "R"}
+              </span>
+            </p>
+            <p className="muted court-status-note">2P/3P ตามฝั่งที่ยิง</p>
           </div>
           <div className="card">
             <h2>อีเวนต์ล่าสุด ({events.length})</h2>

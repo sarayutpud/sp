@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   createGame,
+  deleteGame,
   fetchCompetitions,
   fetchGameRosters,
   fetchGames,
@@ -160,6 +161,17 @@ export function GamesPage() {
       updateGameStatus(id, status),
     onSuccess: async () => {
       setMsg("อัปเดตสถานะแล้ว");
+      await qc.invalidateQueries({ queryKey: ["games"] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteGame(id),
+    onSuccess: async () => {
+      setMsg("ลบแมตช์แล้ว");
+      setRosterGameId(null);
+      setEditGameId(null);
       await qc.invalidateQueries({ queryKey: ["games"] });
     },
     onError: (e: Error) => setMsg(e.message),
@@ -500,6 +512,24 @@ export function GamesPage() {
                             จบ
                           </button>
                         )}
+                        <button
+                          type="button"
+                          className="btn tiny danger"
+                          disabled={deleteMut.isPending}
+                          onClick={() => {
+                            const label = gameMatchLabel(
+                              teamMap.get(g.our_team_id) ?? "ทีมเรา",
+                              g.opponent_name,
+                              g.our_side,
+                            );
+                            const ok = window.confirm(
+                              `ลบแมตช์นี้?\n\n${label}\n\nสถิติและรายชื่อของนัดนี้จะถูกลบถาวร`,
+                            );
+                            if (ok) deleteMut.mutate(g.id);
+                          }}
+                        >
+                          ลบ
+                        </button>
                       </td>
                     </tr>
                   );

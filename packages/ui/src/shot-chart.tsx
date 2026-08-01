@@ -19,6 +19,8 @@ type Props = {
   /** When set, click preview uses these baskets for dual 2P/3P hint. */
   homeBasketSide?: BasketSide;
   awayBasketSide?: BasketSide;
+  /** Yellow focus legend overlay — off by default (live UI uses the side rail). */
+  showLegend?: boolean;
 };
 
 /** FIBA full court click target — normalized 0–1 coords */
@@ -30,6 +32,7 @@ export function ShotChart({
   awayCode = "AWAY",
   homeBasketSide,
   awayBasketSide,
+  showLegend = false,
 }: Props) {
   const homeBasket = homeBasketSide ?? basketSide;
   const awayBasket =
@@ -55,13 +58,10 @@ export function ShotChart({
       onClick={(e) => {
         const el = e.currentTarget;
         const rect = el.getBoundingClientRect();
-        // Prefer the SVG court box so CSS max-height / letterboxing cannot skew y.
         const svg = el.querySelector("svg");
         const box = svg?.getBoundingClientRect() ?? rect;
         const x = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width));
         const y = Math.min(1, Math.max(0, (e.clientY - box.top) / box.height));
-        // Preliminary label uses focused team's basket; final 2P/3P is
-        // recomputed when the shooter side is chosen.
         const isThree = isThreePointAttempt({ x, y }, basketSide);
         onShot({ x, y, isThree, basketSide });
       }}
@@ -70,6 +70,7 @@ export function ShotChart({
         viewBox="0 0 280 150"
         width="100%"
         height="100%"
+        preserveAspectRatio="xMidYMid meet"
         style={{ pointerEvents: "none", display: "block" }}
         role="img"
       >
@@ -99,7 +100,6 @@ export function ShotChart({
           stroke="#1a237e"
           strokeWidth="1.5"
         />
-        {/* Key / paint */}
         <rect
           x="1"
           y="35"
@@ -118,7 +118,6 @@ export function ShotChart({
           stroke="#1a237e"
           strokeWidth="1.5"
         />
-        {/* Baskets */}
         <circle
           cx="16"
           cy="75"
@@ -133,7 +132,6 @@ export function ShotChart({
           fill={basketSide === "RIGHT" ? "#e53935" : "#1a237e"}
           opacity={basketSide === "RIGHT" ? 1 : 0.55}
         />
-        {/* Left 3PT: corner lines + arc (r=67.5, corner y=9/141, join x≈30.15) */}
         <line
           x1="1"
           y1="9"
@@ -159,7 +157,6 @@ export function ShotChart({
           strokeWidth="1.4"
           opacity={0.85}
         />
-        {/* Right 3PT */}
         <line
           x1="279"
           y1="9"
@@ -206,30 +203,32 @@ export function ShotChart({
           R
         </text>
       </svg>
-      <span
-        style={{
-          position: "absolute",
-          top: 6,
-          right: 6,
-          fontSize: 10,
-          color: "#1a237e",
-          background: "rgba(255,214,0,0.92)",
-          padding: "3px 7px",
-          fontWeight: 700,
-          borderRadius: 4,
-          maxWidth: "46%",
-          textAlign: "right",
-          lineHeight: 1.25,
-          pointerEvents: "none",
-        }}
-      >
-        ตะกร้าโฟกัส {basketSide === "LEFT" ? "L" : "R"}
-        <br />
-        {homeCode}→{homeBasket === "LEFT" ? "L" : "R"} · {awayCode}→
-        {awayBasket === "LEFT" ? "L" : "R"}
-        <br />
-        2P/3P ตามฝั่งยิง
-      </span>
+      {showLegend ? (
+        <span
+          style={{
+            position: "absolute",
+            top: 6,
+            right: 6,
+            fontSize: 10,
+            color: "#1a237e",
+            background: "rgba(255,214,0,0.92)",
+            padding: "3px 7px",
+            fontWeight: 700,
+            borderRadius: 4,
+            maxWidth: "46%",
+            textAlign: "right",
+            lineHeight: 1.25,
+            pointerEvents: "none",
+          }}
+        >
+          ตะกร้าโฟกัส {basketSide === "LEFT" ? "L" : "R"}
+          <br />
+          {homeCode}→{homeBasket === "LEFT" ? "L" : "R"} · {awayCode}→
+          {awayBasket === "LEFT" ? "L" : "R"}
+          <br />
+          2P/3P ตามฝั่งยิง
+        </span>
+      ) : null}
     </button>
   );
 }

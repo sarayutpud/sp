@@ -144,17 +144,18 @@ body {
 .main {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  gap: 0.55rem;
-  padding: 0.4rem 0.55rem 0.5rem;
+  gap: 0.45rem;
+  padding: 0.3rem 0.45rem 0.4rem;
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  align-content: start;
+  overflow: hidden;
+  align-items: stretch;
 }
 
 @media (max-width: 900px) {
   .main {
     grid-template-columns: 1fr;
+    overflow: auto;
   }
 }
 
@@ -165,31 +166,35 @@ body {
   color: var(--yellow);
 }
 
-.court-hotkey-hint {
-  margin: 0 0 0.25rem;
-  font-size: 0.68rem;
-  line-height: 1.3;
-}
-
 .court-panel {
   border-radius: 10px;
-  padding: 0.15rem;
+  padding: 0.1rem;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   transition: box-shadow 0.25s ease, outline-color 0.25s ease;
 }
 
+/* Height-first FIBA 28×15 fill — click math stays on SVG getBoundingClientRect */
 .court-chart-wrap {
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  max-width: min(100%, 820px);
-  max-height: min(52vh, 460px);
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
+  container-type: size;
+  display: grid;
+  place-items: center;
 }
 
 .court-chart-wrap > button {
   aspect-ratio: 28 / 15 !important;
-  max-height: min(52vh, 460px) !important;
-  width: 100% !important;
-  height: auto !important;
+  width: min(100cqi, calc(100cqb * 28 / 15)) !important;
+  height: min(100cqb, calc(100cqi * 15 / 28)) !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
   display: block;
 }
 
@@ -215,6 +220,34 @@ body {
   gap: 0.5rem;
   min-width: 0;
   min-height: 0;
+  overflow: auto;
+}
+
+.court-status-card h2 {
+  margin: 0 0 0.3rem;
+  font-size: 0.85rem;
+}
+
+.court-status-hint {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.court-status-focus {
+  margin: 0 0 0.2rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.court-status-focus strong {
+  color: var(--yellow);
+}
+
+.court-status-note {
+  margin: 0;
+  font-size: 0.68rem;
 }
 
 .card {
@@ -666,16 +699,6 @@ body {
     display: none;
   }
 
-  .court-hotkey-hint {
-    font-size: 0.62rem;
-    margin-bottom: 0.15rem;
-  }
-
-  .court-chart-wrap,
-  .court-chart-wrap > button {
-    max-height: min(44vh, 380px) !important;
-  }
-
   .action-bar-grid .btn {
     min-height: 36px;
     font-size: 0.74rem;
@@ -683,6 +706,10 @@ body {
 
   .log {
     max-height: 80px;
+  }
+
+  .court-status-hint {
+    font-size: 0.66rem;
   }
 }
 

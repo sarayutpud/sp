@@ -196,6 +196,12 @@ export async function updateGameStatus(id: string, status: string) {
   if (error) throw error;
 }
 
+/** Delete a match and cascaded stats/rosters/period scores. */
+export async function deleteGame(id: string) {
+  const { error } = await supabase.from("games").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function updateTeam(
   id: string,
   input: { name: string; short_name: string | null },

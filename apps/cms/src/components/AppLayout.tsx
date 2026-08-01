@@ -3,7 +3,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 
 const NAV = [
-  { to: "/", label: "เริ่มต้น", mark: "1", end: true },
+  { to: "/", label: "เริ่มต้น / คู่มือ", mark: "1", end: true },
   { to: "/players", label: "ผู้เล่น", mark: "P" },
   { to: "/games", label: "แมตช์", mark: "M" },
   { to: "/reports", label: "รายงาน", mark: "Σ" },
@@ -81,18 +81,6 @@ export function AppLayout() {
               {item.label}
             </NavLink>
           ))}
-          <a
-            className="nav-link manual"
-            href="/user-manual.html"
-            target="_blank"
-            rel="noreferrer"
-            onClick={closeMenu}
-          >
-            <span className="nav-mark" aria-hidden="true">
-              ?
-            </span>
-            คู่มือ
-          </a>
         </nav>
 
         <main className="app-main">

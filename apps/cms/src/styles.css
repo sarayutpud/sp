@@ -1359,8 +1359,121 @@ a.btn:hover {
 }
 
 /* Guide page */
+.guide-page {
+  max-width: 920px;
+}
+
 .guide-hero {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.guide-kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--indigo);
+}
+
+.guide-toc ol {
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+  columns: 2;
+  gap: 1.5rem;
+}
+
+.guide-toc a {
+  color: var(--indigo);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.guide-toc a:hover {
+  text-decoration: underline;
+}
+
+.guide-section h2 {
+  margin-top: 0;
+}
+
+.guide-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.35rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.guide-flow-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.guide-flow-node {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 6.5rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #fffef5, #fff);
+  box-shadow: var(--shadow-sm);
+}
+
+.guide-flow-num {
+  width: 1.4rem;
+  height: 1.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--navy);
+  color: var(--yellow);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.guide-flow-node strong {
+  color: var(--navy);
+  font-size: 0.92rem;
+}
+
+.guide-flow-node small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.guide-flow-arrow {
+  color: var(--yellow-deep);
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.guide-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.guide-compare-card {
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+}
+
+.guide-compare-card h3 {
+  margin: 0 0 0.45rem;
+  color: var(--navy);
+  font-size: 1rem;
+}
+
+.guide-compare-card ul {
+  margin: 0;
+  padding-left: 1.1rem;
 }
 
 .guide-steps li {
@@ -1388,6 +1501,121 @@ a.btn:hover {
   text-decoration: underline;
 }
 
+.guide-shot-flow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.55rem;
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.guide-shot-flow li {
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-top: 3px solid var(--yellow);
+}
+
+.guide-shot-flow strong {
+  display: block;
+  color: var(--navy);
+  margin-bottom: 0.25rem;
+}
+
+.guide-shot-flow span {
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.guide-bullets {
+  margin: 0.5rem 0 0;
+  padding-left: 1.15rem;
+}
+
+.guide-bullets li {
+  margin-bottom: 0.4rem;
+}
+
+.guide-court-svg {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  margin: 0.75rem 0 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.guide-formula-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.65rem;
+}
+
+.guide-formula {
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #f7f8fc, #fff);
+}
+
+.guide-formula h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.88rem;
+  color: var(--navy);
+}
+
+.guide-formula code {
+  display: block;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--navy-deep);
+  background: rgba(255, 214, 0, 0.18);
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  margin-bottom: 0.4rem;
+  white-space: pre-wrap;
+}
+
+.guide-callout {
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  margin: 0.65rem 0;
+  border: 1px solid var(--line);
+}
+
+.guide-callout.ok {
+  background: #f1faf5;
+  border-color: #b7e0c8;
+}
+
+.guide-callout.warn {
+  background: #fff8e8;
+  border-color: #f0d48a;
+}
+
+.guide-callout p {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.guide-callout code {
+  font-size: 0.8rem;
+}
+
+.tone-home {
+  color: #0277bd;
+  font-weight: 700;
+}
+
+.tone-away {
+  color: #e64a19;
+  font-weight: 700;
+}
+
 .guide-faq {
   margin: 0;
 }
@@ -1404,6 +1632,20 @@ a.btn:hover {
 
 .guide-faq dd {
   margin: 0.25rem 0 0;
+}
+
+@media (max-width: 720px) {
+  .guide-toc ol {
+    columns: 1;
+  }
+
+  .guide-compare {
+    grid-template-columns: 1fr;
+  }
+
+  .guide-flow-arrow {
+    display: none;
+  }
 }
 
 /* Game side chip */
