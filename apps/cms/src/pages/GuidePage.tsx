@@ -134,6 +134,8 @@ export function GuidePage() {
           <li>
             <Link to="/players">ผู้เล่น</Link> — เพิ่มชื่อ + เบอร์ของ
             <strong> ทั้งสองทีม</strong> (ทีมเราและคู่แข่ง) ให้ครบก่อนสร้างแมตช์
+            — ในหน้าแมตช์สามารถเพิ่ม/แก้ไข/ลบ <strong>การแข่งขัน</strong> และ{" "}
+            <strong>ทีม</strong> ได้โดยตรง
           </li>
           <li>
             <Link to="/games">แมตช์</Link> — เลือกทีมเรา + คู่แข่งจาก dropdown

@@ -483,6 +483,27 @@ textarea {
   align-items: end;
 }
 
+.entity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: -0.35rem 0 0.55rem;
+}
+
+.entity-editor {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.65rem 0.75rem;
+  margin: 0 0 0.75rem;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: rgba(26, 35, 126, 0.03);
+}
+
+.entity-editor .row {
+  margin-top: 0;
+}
+
 @media (max-width: 720px) {
   .team-edit-row {
     grid-template-columns: 1fr;

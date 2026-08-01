@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import {
   createPlayer,
+  createTeam,
   deletePlayer,
+  deleteTeam,
   fetchPlayers,
   fetchTeams,
   updatePlayer,
@@ -19,6 +21,9 @@ export function PlayersPage() {
   const [msg, setMsg] = useState("");
   const [teamNameEdit, setTeamNameEdit] = useState("");
   const [teamShortEdit, setTeamShortEdit] = useState("");
+  const [creatingTeam, setCreatingTeam] = useState(false);
+  const [newTeamName, setNewTeamName] = useState("");
+  const [newTeamShort, setNewTeamShort] = useState("");
 
   const teams = useQuery({ queryKey: ["teams"], queryFn: fetchTeams });
   const activeTeamId = teamId || teams.data?.[0]?.id || "";
@@ -82,6 +87,36 @@ export function PlayersPage() {
     onError: (e: Error) => setMsg(e.message),
   });
 
+  const createTeamMut = useMutation({
+    mutationFn: async () => {
+      const row = await createTeam({
+        name: newTeamName,
+        short_name: newTeamShort,
+      });
+      return row.id;
+    },
+    onSuccess: async (id) => {
+      setTeamId(id);
+      setCreatingTeam(false);
+      setNewTeamName("");
+      setNewTeamShort("");
+      setMsg("เพิ่มทีมแล้ว");
+      await qc.invalidateQueries({ queryKey: ["teams"] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
+  const deleteTeamMut = useMutation({
+    mutationFn: (id: string) => deleteTeam(id),
+    onSuccess: async () => {
+      setTeamId("");
+      setMsg("ลบทีมแล้ว");
+      await qc.invalidateQueries({ queryKey: ["teams"] });
+      await qc.invalidateQueries({ queryKey: ["players"] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
   const delMut = useMutation({
     mutationFn: deletePlayer,
     onSuccess: async () => {
@@ -95,7 +130,7 @@ export function PlayersPage() {
     <div className="page-block">
       <header className="page-head">
         <h1>จัดการผู้เล่น</h1>
-        <p className="muted">เพิ่ม แก้ไข ลบผู้เล่น และแก้ชื่อทีมเรา</p>
+        <p className="muted">เพิ่ม แก้ไข ลบผู้เล่น และจัดการทีม (เพิ่ม/แก้/ลบ)</p>
       </header>
 
       <div className="toolbar">
@@ -112,10 +147,84 @@ export function PlayersPage() {
             ))}
           </select>
         </label>
+        <button
+          type="button"
+          className="btn tiny"
+          onClick={() => {
+            setCreatingTeam(true);
+            setNewTeamName("");
+            setNewTeamShort("");
+          }}
+        >
+          เพิ่มทีม
+        </button>
+        <button
+          type="button"
+          className="btn tiny danger"
+          disabled={!activeTeamId || deleteTeamMut.isPending}
+          onClick={() => {
+            if (!activeTeamId) return;
+            if (
+              window.confirm(
+                `ลบทีม?\n\n${teamName || "ทีมนี้"}\n\nลบได้เมื่อยังไม่มีผู้เล่น/แมตช์อ้างอิง`,
+              )
+            ) {
+              deleteTeamMut.mutate(activeTeamId);
+            }
+          }}
+        >
+          ลบทีม
+        </button>
       </div>
 
+      {creatingTeam && (
+        <section className="panel">
+          <h2>เพิ่มทีมใหม่</h2>
+          <form
+            className="stack team-edit-row"
+            onSubmit={(e) => {
+              e.preventDefault();
+              createTeamMut.mutate();
+            }}
+          >
+            <label>
+              ชื่อทีม
+              <input
+                value={newTeamName}
+                onChange={(e) => setNewTeamName(e.target.value)}
+                required
+              />
+            </label>
+            <label>
+              ชื่อสั้น
+              <input
+                value={newTeamShort}
+                onChange={(e) => setNewTeamShort(e.target.value)}
+                placeholder="เช่น SPF"
+              />
+            </label>
+            <div className="row">
+              <button
+                type="submit"
+                className="btn primary"
+                disabled={createTeamMut.isPending}
+              >
+                สร้างทีม
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setCreatingTeam(false)}
+              >
+                ยกเลิก
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
       <section className="panel">
-        <h2>ชื่อทีมเรา</h2>
+        <h2>ชื่อทีม</h2>
         <form
           className="stack team-edit-row"
           onSubmit={(e) => {

@@ -1,4 +1,6 @@
 export const DEFAULT_COMPETITION_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+export const DEFAULT_RULESET_ID = "00000000-0000-4000-8000-000000000001";
+export const DEFAULT_ORG_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 export type Team = {
   id: string;

@@ -230,6 +230,7 @@ do $$ begin create policy "authenticated manage games" on public.games for all t
 do $$ begin create policy "authenticated manage game_rosters" on public.game_rosters for all to authenticated using (true) with check (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "authenticated manage game_period_scores" on public.game_period_scores for all to authenticated using (true) with check (true); exception when duplicate_object then null; end $$;
 do $$ begin create policy "authenticated manage teams" on public.teams for all to authenticated using (true) with check (true); exception when duplicate_object then null; end $$;
+do $$ begin create policy "authenticated manage competitions" on public.competitions for all to authenticated using (true) with check (true); exception when duplicate_object then null; end $$;
 
 -- Courtside anon sync (read structure + push PBP)
 do $$ begin create policy "anon read pbp" on public.play_by_play for select to anon using (true); exception when duplicate_object then null; end $$;

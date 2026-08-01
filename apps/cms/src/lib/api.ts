@@ -11,6 +11,10 @@ import type {
   RosterRow,
   Team,
 } from "./types";
+import {
+  DEFAULT_ORG_ID,
+  DEFAULT_RULESET_ID,
+} from "./types";
 
 const GAME_SELECT =
   "id,status,scheduled_at,competition_id,our_team_id,opponent_name,our_side,home_team_id,away_team_id,home_coach,away_coach,crew_chief,umpire";
@@ -43,6 +47,46 @@ export async function fetchCompetitions(): Promise<Competition[]> {
     .order("name");
   if (error) throw error;
   return (data ?? []) as Competition[];
+}
+
+export async function createCompetition(input: {
+  name: string;
+  season?: string | null;
+  ruleset_id?: string;
+  organization_id?: string | null;
+}): Promise<Competition> {
+  const name = input.name.trim();
+  if (!name) throw new Error("กรอกชื่อการแข่งขัน");
+  const { data, error } = await supabase
+    .from("competitions")
+    .insert({
+      name,
+      season: input.season?.trim() || null,
+      ruleset_id: input.ruleset_id ?? DEFAULT_RULESET_ID,
+      organization_id: input.organization_id ?? DEFAULT_ORG_ID,
+    })
+    .select("id,name,season")
+    .single();
+  if (error) throw error;
+  return data as Competition;
+}
+
+export async function updateCompetition(
+  id: string,
+  input: { name: string; season: string | null },
+) {
+  const name = input.name.trim();
+  if (!name) throw new Error("กรอกชื่อการแข่งขัน");
+  const { error } = await supabase
+    .from("competitions")
+    .update({ name, season: input.season?.trim() || null })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteCompetition(id: string) {
+  const { error } = await supabase.from("competitions").delete().eq("id", id);
+  if (error) throw error;
 }
 
 export async function fetchPlayers(teamId?: string): Promise<Player[]> {
@@ -202,6 +246,26 @@ export async function deleteGame(id: string) {
   if (error) throw error;
 }
 
+export async function createTeam(input: {
+  name: string;
+  short_name?: string | null;
+  organization_id?: string | null;
+}): Promise<Team> {
+  const name = input.name.trim();
+  if (!name) throw new Error("กรอกชื่อทีม");
+  const { data, error } = await supabase
+    .from("teams")
+    .insert({
+      name,
+      short_name: input.short_name?.trim() || null,
+      organization_id: input.organization_id ?? DEFAULT_ORG_ID,
+    })
+    .select("id,name,short_name")
+    .single();
+  if (error) throw error;
+  return data as Team;
+}
+
 export async function updateTeam(
   id: string,
   input: { name: string; short_name: string | null },
@@ -213,6 +277,11 @@ export async function updateTeam(
       short_name: input.short_name?.trim() || null,
     })
     .eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteTeam(id: string) {
+  const { error } = await supabase.from("teams").delete().eq("id", id);
   if (error) throw error;
 }
 

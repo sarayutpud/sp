@@ -2,16 +2,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  createCompetition,
   createGame,
+  createTeam,
+  deleteCompetition,
   deleteGame,
+  deleteTeam,
   fetchCompetitions,
   fetchGameRosters,
   fetchGames,
   fetchPlayers,
   fetchTeams,
   saveGameRoster,
+  updateCompetition,
   updateGame,
   updateGameStatus,
+  updateTeam,
 } from "../lib/api";
 import {
   DEFAULT_COMPETITION_ID,
@@ -26,6 +32,8 @@ function toLocalInputValue(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+type EditorMode = "idle" | "create" | "edit";
 
 export function GamesPage() {
   const qc = useQueryClient();
@@ -56,6 +64,14 @@ export function GamesPage() {
   const [rosterTeamScope, setRosterTeamScope] = useState<"our" | "opponent">(
     "our",
   );
+
+  const [compMode, setCompMode] = useState<EditorMode>("idle");
+  const [compName, setCompName] = useState("");
+  const [compSeason, setCompSeason] = useState("");
+  const [teamMode, setTeamMode] = useState<EditorMode>("idle");
+  const [teamTarget, setTeamTarget] = useState<"our" | "opponent">("our");
+  const [teamNameDraft, setTeamNameDraft] = useState("");
+  const [teamShortDraft, setTeamShortDraft] = useState("");
 
   const teams = useQuery({ queryKey: ["teams"], queryFn: fetchTeams });
   const competitions = useQuery({
@@ -173,6 +189,104 @@ export function GamesPage() {
       setRosterGameId(null);
       setEditGameId(null);
       await qc.invalidateQueries({ queryKey: ["games"] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
+  const activeCompetition = useMemo(
+    () => (competitions.data ?? []).find((c) => c.id === activeCompId),
+    [competitions.data, activeCompId],
+  );
+
+  const selectedOurTeam = useMemo(
+    () => (teams.data ?? []).find((t) => t.id === activeOurTeamId),
+    [teams.data, activeOurTeamId],
+  );
+
+  const selectedOpponentTeam = useMemo(
+    () => (teams.data ?? []).find((t) => t.id === opponentTeamId),
+    [teams.data, opponentTeamId],
+  );
+
+  const compSaveMut = useMutation({
+    mutationFn: async () => {
+      if (compMode === "edit") {
+        if (!activeCompId) throw new Error("เลือกการแข่งขัน");
+        await updateCompetition(activeCompId, {
+          name: compName,
+          season: compSeason,
+        });
+        return activeCompId;
+      }
+      const row = await createCompetition({
+        name: compName,
+        season: compSeason,
+      });
+      return row.id;
+    },
+    onSuccess: async (id) => {
+      setCompetitionId(id);
+      setCompMode("idle");
+      setMsg(compMode === "edit" ? "แก้ไขการแข่งขันแล้ว" : "เพิ่มการแข่งขันแล้ว");
+      await qc.invalidateQueries({ queryKey: ["competitions"] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
+  const compDeleteMut = useMutation({
+    mutationFn: async () => {
+      if (!activeCompId) throw new Error("เลือกการแข่งขัน");
+      await deleteCompetition(activeCompId);
+    },
+    onSuccess: async () => {
+      setCompetitionId("");
+      setCompMode("idle");
+      setMsg("ลบการแข่งขันแล้ว");
+      await qc.invalidateQueries({ queryKey: ["competitions"] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
+  const teamEditId =
+    teamTarget === "our" ? activeOurTeamId : opponentTeamId;
+
+  const teamSaveMut = useMutation({
+    mutationFn: async () => {
+      if (teamMode === "edit") {
+        if (!teamEditId) throw new Error("เลือกทีม");
+        await updateTeam(teamEditId, {
+          name: teamNameDraft,
+          short_name: teamShortDraft,
+        });
+        return teamEditId;
+      }
+      const row = await createTeam({
+        name: teamNameDraft,
+        short_name: teamShortDraft,
+      });
+      return row.id;
+    },
+    onSuccess: async (id) => {
+      if (teamTarget === "our") setOurTeamId(id);
+      else setOpponentTeamId(id);
+      setTeamMode("idle");
+      setMsg(teamMode === "edit" ? "แก้ไขทีมแล้ว" : "เพิ่มทีมแล้ว");
+      await qc.invalidateQueries({ queryKey: ["teams"] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
+  const teamDeleteMut = useMutation({
+    mutationFn: async (id: string) => {
+      await deleteTeam(id);
+      return id;
+    },
+    onSuccess: async (id) => {
+      if (ourTeamId === id || activeOurTeamId === id) setOurTeamId("");
+      if (opponentTeamId === id) setOpponentTeamId("");
+      setTeamMode("idle");
+      setMsg("ลบทีมแล้ว");
+      await qc.invalidateQueries({ queryKey: ["teams"] });
     },
     onError: (e: Error) => setMsg(e.message),
   });
@@ -303,7 +417,10 @@ export function GamesPage() {
               การแข่งขัน
               <select
                 value={activeCompId}
-                onChange={(e) => setCompetitionId(e.target.value)}
+                onChange={(e) => {
+                  setCompetitionId(e.target.value);
+                  setCompMode("idle");
+                }}
               >
                 {(competitions.data ?? []).map((c) => (
                   <option key={c.id} value={c.id}>
@@ -313,25 +430,199 @@ export function GamesPage() {
                 ))}
               </select>
             </label>
+            <div className="entity-actions">
+              <button
+                type="button"
+                className="btn tiny"
+                onClick={() => {
+                  setCompMode("create");
+                  setCompName("");
+                  setCompSeason("");
+                }}
+              >
+                เพิ่ม
+              </button>
+              <button
+                type="button"
+                className="btn tiny"
+                disabled={!activeCompetition}
+                onClick={() => {
+                  if (!activeCompetition) return;
+                  setCompMode("edit");
+                  setCompName(activeCompetition.name);
+                  setCompSeason(activeCompetition.season ?? "");
+                }}
+              >
+                แก้ไข
+              </button>
+              <button
+                type="button"
+                className="btn tiny danger"
+                disabled={!activeCompId || compDeleteMut.isPending}
+                onClick={() => {
+                  const label = activeCompetition
+                    ? `${activeCompetition.name}${activeCompetition.season ? ` (${activeCompetition.season})` : ""}`
+                    : "การแข่งขันนี้";
+                  if (
+                    window.confirm(
+                      `ลบการแข่งขัน?\n\n${label}\n\nลบได้เฉพาะเมื่อยังไม่มีแมตช์อ้างอิง`,
+                    )
+                  ) {
+                    compDeleteMut.mutate();
+                  }
+                }}
+              >
+                ลบ
+              </button>
+            </div>
+            {compMode !== "idle" && (
+              <div className="entity-editor">
+                <label>
+                  ชื่อการแข่งขัน
+                  <input
+                    value={compName}
+                    onChange={(e) => setCompName(e.target.value)}
+                    placeholder="เช่น ลีกฤดูร้อน"
+                    required
+                  />
+                </label>
+                <label>
+                  ซีซัน
+                  <input
+                    value={compSeason}
+                    onChange={(e) => setCompSeason(e.target.value)}
+                    placeholder="2026"
+                  />
+                </label>
+                <div className="row">
+                  <button
+                    type="button"
+                    className="btn primary tiny"
+                    disabled={compSaveMut.isPending}
+                    onClick={() => compSaveMut.mutate()}
+                  >
+                    {compMode === "edit" ? "บันทึกการแข่งขัน" : "สร้างการแข่งขัน"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn tiny"
+                    onClick={() => setCompMode("idle")}
+                  >
+                    ยกเลิก
+                  </button>
+                </div>
+              </div>
+            )}
             <label>
               ทีมเรา
               <select
                 value={activeOurTeamId}
-                onChange={(e) => setOurTeamId(e.target.value)}
+                onChange={(e) => {
+                  setOurTeamId(e.target.value);
+                  setTeamMode("idle");
+                }}
                 required
               >
                 {(teams.data ?? []).map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
+                    {t.short_name ? ` (${t.short_name})` : ""}
                   </option>
                 ))}
               </select>
             </label>
+            <div className="entity-actions">
+              <button
+                type="button"
+                className="btn tiny"
+                onClick={() => {
+                  setTeamTarget("our");
+                  setTeamMode("create");
+                  setTeamNameDraft("");
+                  setTeamShortDraft("");
+                }}
+              >
+                เพิ่ม
+              </button>
+              <button
+                type="button"
+                className="btn tiny"
+                disabled={!selectedOurTeam}
+                onClick={() => {
+                  if (!selectedOurTeam) return;
+                  setTeamTarget("our");
+                  setTeamMode("edit");
+                  setTeamNameDraft(selectedOurTeam.name);
+                  setTeamShortDraft(selectedOurTeam.short_name ?? "");
+                }}
+              >
+                แก้ไข
+              </button>
+              <button
+                type="button"
+                className="btn tiny danger"
+                disabled={!activeOurTeamId || teamDeleteMut.isPending}
+                onClick={() => {
+                  if (!activeOurTeamId) return;
+                  const label = selectedOurTeam?.name ?? "ทีมนี้";
+                  if (
+                    window.confirm(
+                      `ลบทีม?\n\n${label}\n\nลบได้เมื่อยังไม่มีผู้เล่น/แมตช์อ้างอิง`,
+                    )
+                  ) {
+                    teamDeleteMut.mutate(activeOurTeamId);
+                  }
+                }}
+              >
+                ลบ
+              </button>
+            </div>
+            {teamMode !== "idle" && teamTarget === "our" && (
+              <div className="entity-editor">
+                <label>
+                  ชื่อทีม
+                  <input
+                    value={teamNameDraft}
+                    onChange={(e) => setTeamNameDraft(e.target.value)}
+                    placeholder="ชื่อทีมเรา"
+                    required
+                  />
+                </label>
+                <label>
+                  ชื่อสั้น
+                  <input
+                    value={teamShortDraft}
+                    onChange={(e) => setTeamShortDraft(e.target.value)}
+                    placeholder="เช่น SPF"
+                  />
+                </label>
+                <div className="row">
+                  <button
+                    type="button"
+                    className="btn primary tiny"
+                    disabled={teamSaveMut.isPending}
+                    onClick={() => teamSaveMut.mutate()}
+                  >
+                    {teamMode === "edit" ? "บันทึกทีม" : "สร้างทีม"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn tiny"
+                    onClick={() => setTeamMode("idle")}
+                  >
+                    ยกเลิก
+                  </button>
+                </div>
+              </div>
+            )}
             <label>
               ทีมคู่แข่ง
               <select
                 value={opponentTeamId}
-                onChange={(e) => setOpponentTeamId(e.target.value)}
+                onChange={(e) => {
+                  setOpponentTeamId(e.target.value);
+                  setTeamMode("idle");
+                }}
                 required
               >
                 <option value="">— เลือกจากรายการทีม —</option>
@@ -340,12 +631,97 @@ export function GamesPage() {
                   .map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
+                      {t.short_name ? ` (${t.short_name})` : ""}
                     </option>
                   ))}
               </select>
             </label>
+            <div className="entity-actions">
+              <button
+                type="button"
+                className="btn tiny"
+                onClick={() => {
+                  setTeamTarget("opponent");
+                  setTeamMode("create");
+                  setTeamNameDraft("");
+                  setTeamShortDraft("");
+                }}
+              >
+                เพิ่ม
+              </button>
+              <button
+                type="button"
+                className="btn tiny"
+                disabled={!selectedOpponentTeam}
+                onClick={() => {
+                  if (!selectedOpponentTeam) return;
+                  setTeamTarget("opponent");
+                  setTeamMode("edit");
+                  setTeamNameDraft(selectedOpponentTeam.name);
+                  setTeamShortDraft(selectedOpponentTeam.short_name ?? "");
+                }}
+              >
+                แก้ไข
+              </button>
+              <button
+                type="button"
+                className="btn tiny danger"
+                disabled={!opponentTeamId || teamDeleteMut.isPending}
+                onClick={() => {
+                  if (!opponentTeamId) return;
+                  const label = selectedOpponentTeam?.name ?? "ทีมนี้";
+                  if (
+                    window.confirm(
+                      `ลบทีม?\n\n${label}\n\nลบได้เมื่อยังไม่มีผู้เล่น/แมตช์อ้างอิง`,
+                    )
+                  ) {
+                    teamDeleteMut.mutate(opponentTeamId);
+                  }
+                }}
+              >
+                ลบ
+              </button>
+            </div>
+            {teamMode !== "idle" && teamTarget === "opponent" && (
+              <div className="entity-editor">
+                <label>
+                  ชื่อทีม
+                  <input
+                    value={teamNameDraft}
+                    onChange={(e) => setTeamNameDraft(e.target.value)}
+                    placeholder="ชื่อทีมคู่แข่ง"
+                    required
+                  />
+                </label>
+                <label>
+                  ชื่อสั้น
+                  <input
+                    value={teamShortDraft}
+                    onChange={(e) => setTeamShortDraft(e.target.value)}
+                    placeholder="เช่น AA"
+                  />
+                </label>
+                <div className="row">
+                  <button
+                    type="button"
+                    className="btn primary tiny"
+                    disabled={teamSaveMut.isPending}
+                    onClick={() => teamSaveMut.mutate()}
+                  >
+                    {teamMode === "edit" ? "บันทึกทีม" : "สร้างทีม"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn tiny"
+                    onClick={() => setTeamMode("idle")}
+                  >
+                    ยกเลิก
+                  </button>
+                </div>
+              </div>
+            )}
             <p className="muted report-note">
-              คู่แข่งต้องเป็นทีมในระบบ — เพิ่มทีม/ผู้เล่นก่อนถ้ายังไม่มีในรายการ
+              เพิ่ม / แก้ไข / ลบ การแข่งขันและทีมได้ที่นี่ — แล้วค่อยสร้างแมตช์
             </p>
             <fieldset className="side-fieldset">
               <legend>ฝั่งเรา</legend>
