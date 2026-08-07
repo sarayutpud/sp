@@ -196,9 +196,8 @@ export function GuidePage() {
         <p className="guide-kicker">SP FITNESS · CMS + Courtside</p>
         <h1>เริ่มต้น & คู่มือใช้งาน</h1>
         <p className="muted">
-          อัปเดตล่าสุด: หน้าแยกการแข่งขัน/ทีม · แมตช์เหลือแค่เลือกจากรายการ ·
-          รายงานมีแท็บประเมินผู้เล่น — รายงานหลักยังเป็น{" "}
-          <strong>FIBA Box Score สองทีม</strong>
+          อัปเดตล่าสุด: นำเข้า Excel · ดาวน์โหลดแอป · PDF ไทย · ล้างระบบ —
+          รายงานหลักยังเป็น <strong>FIBA Box Score สองทีม</strong>
         </p>
       </header>
 
@@ -438,7 +437,8 @@ export function GuidePage() {
             ตารางสองระดับ · comparison · legend) · ส่งออก Excel / PDF
           </li>
           <li>
-            CMS และ Courtside ใช้ไฟล์ Excel/PDF ชุดเดียวกันจากแพ็กเกจรายงานกลาง
+            CMS และ Courtside ใช้ไฟล์ Excel/PDF ชุดเดียวกันจากแพ็กเกจรายงานกลาง ·
+            PDF รองรับชื่อภาษาไทย (ฟอนต์ Sarabun)
           </li>
           <li>
             ลิงก์แชร์สาธารณะเปิดได้โดยไม่ล็อกอิน — แท็บแรกคือใบสถิตินัดสองทีม
@@ -478,21 +478,33 @@ export function GuidePage() {
           </p>
         </div>
         <div className="guide-callout warn">
-          <strong>ไม่แนะนำ: ปุ่ม “ลบทั้งฤดูกาล” บนจอปกติ</strong>
+          <strong>ล้างระบบทั้งก้อน (แมตช์ · ผู้เล่น · ทีม)</strong>
           <p>
-            การล้างหลายแมตช์พร้อมกันเสี่ยงพลาด — ใช้สคริปต์{" "}
+            ใช้หน้า <Link to="/import">นำเข้า Excel</Link> — ยืนยัน 2 ขั้นและพิมพ์{" "}
+            <code>ล้างระบบ</code> · การแข่งขัน (ลีก) ยังอยู่ · หลังล้างให้รีเซ็ตแคชใน
+            Courtside ด้วย
+          </p>
+        </div>
+        <div className="guide-callout warn">
+          <strong>สคริปต์ล้างเฉพาะแมตช์/สถิติ (เก็บทีม·ผู้เล่น)</strong>
+          <p>
             <code>node scripts/purge-match-data.mjs --dry-run</code> ก่อน แล้วค่อยรันจริง
             (ต้องมี service role) เมื่อจบไตรมาส/ฤดูกาล
           </p>
         </div>
         <p className="muted report-note">
-          การลบทีมหรือการแข่งขันทำที่หน้าแยก — ลบได้เมื่อยังไม่มีผู้เล่น/แมตช์อ้างอิง
+          ลบทีมที่หน้าทีมจะลบผู้เล่นของทีมนั้นด้วย — ลบไม่ได้ถ้ายังมีแมตช์อ้างอิงทีม
         </p>
       </section>
 
       <section id="faq" className="panel guide-section">
         <h2>9) คำถามที่พบบ่อย</h2>
         <dl className="guide-faq">
+          <dt>เพิ่มผู้เล่นจำนวนมากทำอย่างไร?</dt>
+          <dd className="muted">
+            หน้า <Link to="/import">นำเข้า Excel</Link> — คอลัมน์เบอร์ · ชื่อ · ทีม
+            (xlsx/csv) หรือเพิ่มทีละคนที่หน้า <Link to="/players">ผู้เล่น</Link>
+          </dd>
           <dt>เพิ่มลีกหรือทีมใหม่ทำที่ไหน?</dt>
           <dd className="muted">
             หน้า <Link to="/competitions">การแข่งขัน</Link> และ{" "}

@@ -4,9 +4,10 @@
 
 ### What this repo is
 pnpm + turbo monorepo (Node 22, pnpm 9.15.0). Two frontends and shared packages, all talking **directly to Supabase** (no separate API server):
-- `apps/cms` (`@sp/cms`) — Vite + React web app (competition CMS: players, rosters, coach reports). Primary runnable product in the cloud VM.
-- `apps/courtside` (`@sp/courtside`) — Tauri 2 desktop app (offline-first live stats). Full desktop run needs `tauri:dev` (Rust + platform webview; the app targets Windows). Its plain Vite web dev (`pnpm --filter @sp/courtside dev`) boots for UI work but Tauri-only plugins (SQLite) won't function in a browser.
-- `packages/*` — `shared-types` (zod), `rules-engine`, `sync-protocol`, `report-export`, `ui`.
+- `apps/cms` (`@sp/cms`) — Vite + React web app (competitions, teams, players, **Excel import**, matches, reports, wipe-all). Primary runnable product in the cloud VM.
+- `apps/courtside` (`@sp/courtside`) — Tauri 2 desktop app (offline-first live stats). Full desktop run needs `tauri:dev` (Rust + platform webview; the app targets Windows). Its plain Vite web dev (`pnpm --filter @sp/courtside dev`) boots for UI work but Tauri-only plugins (SQLite) won't function in a browser. Keep the desktop app light — bulk import/wipe stay on CMS web.
+- `packages/*` — `shared-types` (zod), `rules-engine`, `sync-protocol`, `report-export` (FIBA Excel/PDF + on-demand Sarabun Thai font), `ui`.
+- User-facing docs: `docs/USER_MANUAL.md`. In-app CMS guide: `/`. Courtside HTML: `apps/courtside/public/user-manual.html`.
 
 ### Standard commands (see root `package.json` / `turbo.json`)
 - `pnpm dev` / `pnpm build` / `pnpm test` / `pnpm typecheck` / `pnpm lint`
@@ -22,8 +23,8 @@ The apps require a Supabase backend. For the cloud VM there is a fully local opt
 - Start the stack from repo root: `supabase start` (API on `http://127.0.0.1:54321`, Studio on `54323`). Use `supabase status` to print keys, `supabase db reset` to re-apply baseline + seed.
 - Hosted DB already has the final schema — **do not re-run incremental migrations**. Source of truth: `supabase/schema.sql`. For local CLI only, `supabase/migrations/` has a **baseline copy** of that file plus `local_role_grants` (so `supabase start` can seed). See `supabase/README.md`.
 - Seed creates a ready CMS login: **`sp@test.com` / `sptest`** plus demo teams/players/games.
-- Matches are **two-team**: `home_team_id` + `away_team_id` required; primary report is the FIBA Box Score (both teams). Purge games/stats only: `node scripts/purge-match-data.mjs --dry-run` then without `--dry-run` (needs service role).
-- Courtside/CMS Excel box scores use `@sp/report-export`; CMS also exports zones/season Excel/PDF and shotchart PDF.
+- Matches are **two-team**: `home_team_id` + `away_team_id` required; primary report is the FIBA Box Score (both teams). Purge games/stats only: `node scripts/purge-match-data.mjs --dry-run` then without `--dry-run` (needs service role). CMS **Import** page can wipe games+players+teams (2-step confirm); `deleteTeam` cascades that team's players/roster rows.
+- Courtside/CMS Excel box scores use `@sp/report-export`; Thai PDF text uses Sarabun (lazy-loaded). CMS also exports zones/season Excel/PDF and shotchart PDF. Courtside download folder URL lives in `apps/cms/src/lib/constants.ts`.
 
 ### Courtside Windows release artifacts
 Always copy installers/exe to **`D:\sp\releases\windows`** (see `releases/windows/README.md`).

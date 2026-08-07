@@ -97,6 +97,10 @@
       }
       .tone-home { color: var(--home); font-weight: 700; }
       .tone-away { color: var(--away); font-weight: 700; }
+      .note {
+        font-size: 0.92rem;
+        color: #5a628a;
+      }
     </style>
   </head>
   <body>
@@ -112,10 +116,21 @@
         </div>
       </header>
 
+      <h2>0) ติดตั้งแอป</h2>
+      <div class="card">
+        <p style="margin-top: 0">
+          ดาวน์โหลดจาก CMS (ปุ่ม <strong>ดาวน์โหลดแอป</strong>) — โฟลเดอร์มีครบ
+          Setup <code>.exe</code> · MSI · portable <code>.exe</code>
+        </p>
+        <p class="note" style="margin-bottom: 0">
+          นำเข้าผู้เล่นจำนวนมาก / ล้างระบบทำใน CMS เท่านั้น — แอปนี้โฟกัสบันทึกข้างสนาม
+        </p>
+      </div>
+
       <h2>1) ก่อนเริ่มเกม</h2>
       <ol>
-        <li>ใน CMS สร้างแมตช์ + จัดรายชื่อ<strong>ทั้งสองทีม</strong>แล้ว</li>
-        <li>เปิด Courtside → เลือกแมตช์ (หรือสร้างแมตช์ด่วนจาก dropdown ทีม)</li>
+        <li>ใน CMS สร้างแมตช์ + จัดรายชื่อ<strong>ทั้งสองทีม</strong>แล้ว (หรือนำเข้า Excel ก่อน)</li>
+        <li>เปิด Courtside → เลือกแมตช์</li>
         <li>เลือก 5 คนบนสนามทั้ง <span class="tone-home">เหย้า</span> และ <span class="tone-away">เยือน</span></li>
         <li>กดเริ่มบันทึกสถิติ</li>
       </ol>
@@ -126,7 +141,7 @@
           <strong>ไม่ต้องสลับทีมก่อนทุกช็อต</strong> — แตะสนาม แล้วเลือกผู้เล่นจากกริดสองสี
         </p>
         <ol>
-          <li>แตะจุดบนสนาม</li>
+          <li>แตะจุดบนสนาม (ระบบแยก 2PT / 3PT ให้)</li>
           <li>เลือก <strong>เข้า</strong> หรือ <strong>ไม่เข้า</strong></li>
           <li>
             แตะเบอร์ฝั่งที่ยิง —
@@ -173,7 +188,7 @@
           </tr>
           <tr>
             <td>Excel / PDF</td>
-            <td>ใบสถิติ FIBA สองทีมบนเครื่อง</td>
+            <td>ใบสถิติ FIBA สองทีม — PDF รองรับชื่อภาษาไทย</td>
           </tr>
           <tr>
             <td>Ctrl+Z / Esc</td>
@@ -203,11 +218,16 @@
             <td>สกอร์/สถิติผิดทีม</td>
             <td>ดูสีตอนเลือกเบอร์ · ใช้ Ctrl+Z แล้วบันทึกใหม่</td>
           </tr>
+          <tr>
+            <td>หลัง CMS ล้างระบบแล้วยังเห็นแมตช์เก่า</td>
+            <td>รีเฟรชรายการ / ล้างแคชแอป แล้วซิงก์ใหม่</td>
+          </tr>
         </tbody>
       </table>
 
       <p style="margin-top: 2rem; color: #5a628a">
-        จัดการทีม/แมตช์/รายงานเต็มรูปแบบทำใน CMS หลังล็อกอิน
+        จัดการทีม · นำเข้า Excel · รายงานเต็มรูปแบบทำใน CMS หลังล็อกอิน<br />
+        คู่มือระบบเต็ม: ดูใน CMS หน้าเริ่มต้น หรือไฟล์ <code>docs/USER_MANUAL.md</code>
       </p>
     </div>
   </body>

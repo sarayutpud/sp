@@ -11,6 +11,7 @@
 | `migrations/` | **เฉพาะ local CLI** (`supabase start` / `db reset`) — baseline = สำเนา `schema.sql` + role grants |
 | `../scripts/seed-default-data.mjs` | สร้าง user CMS + seed ครบ (`pnpm seed`) |
 | `../scripts/purge-match-data.mjs` | ล้างเฉพาะแมตช์/สถิติ (เก็บทีม/ผู้เล่น) — `node scripts/purge-match-data.mjs --dry-run` |
+| CMS หน้า `/import` | นำเข้าผู้เล่น (xlsx/csv) และ **ล้างระบบ** แมตช์+ผู้เล่น+ทีม (ยืนยัน 2 ขั้นใน UI) |
 | `../scripts/build-courtside-windows.ps1` | build Courtside Windows → `releases/windows` |
 
 ## ติดตั้งโปรเจกต์ใหม่ (hosted)
