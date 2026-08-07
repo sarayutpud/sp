@@ -1,4 +1,8 @@
 import { Link } from "react-router-dom";
+import {
+  COURTSIDE_DOWNLOAD_FILES,
+  COURTSIDE_DOWNLOAD_URL,
+} from "../lib/constants";
 
 function FlowInfographic() {
   const steps = [
@@ -169,6 +173,11 @@ const QUICK_LINKS = [
     blurb: "เบอร์ + ชื่อ ของทีมที่เลือก",
   },
   {
+    to: "/import",
+    title: "นำเข้า Excel",
+    blurb: "เบอร์ · ชื่อ · ทีม · ล้างระบบ",
+  },
+  {
     to: "/games",
     title: "แมตช์",
     blurb: "เลือกจากรายการ · จัดรายชื่อ 5+5",
@@ -283,6 +292,10 @@ export function GuidePage() {
             <Link to="/players">ผู้เล่น</Link> — เลือกทีมแล้วเพิ่ม/แก้/ลบชื่อ+เบอร์เท่านั้น
           </li>
           <li>
+            <Link to="/import">นำเข้า Excel</Link> — อัปโหลดเบอร์/ชื่อ/ทีม ·
+            ดาวน์โหลดเทมเพลต · ล้างระบบได้
+          </li>
+          <li>
             <Link to="/games">แมตช์</Link> — เลือกการแข่งขัน + ทีมเรา + คู่แข่ง · ไม่มีปุ่มเพิ่มทีมในฟอร์ม
           </li>
         </ul>
@@ -318,6 +331,26 @@ export function GuidePage() {
 
       <section id="courtside" className="panel guide-section">
         <h2>4) Courtside — บันทึกข้างสนาม</h2>
+        <div className="guide-download-box">
+          <a
+            className="btn primary"
+            href={COURTSIDE_DOWNLOAD_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            ดาวน์โหลดแอป Windows
+          </a>
+          <p className="muted report-note">
+            โฟลเดอร์ Google Drive มีครบ 3 ไฟล์ — เลือกอย่างใดอย่างหนึ่ง:
+          </p>
+          <ul className="guide-bullets">
+            {COURTSIDE_DOWNLOAD_FILES.map((f) => (
+              <li key={f.name}>
+                <code>{f.name}</code> — {f.note}
+              </li>
+            ))}
+          </ul>
+        </div>
         <ShotFlowInfographic />
         <ul className="guide-bullets">
           <li>

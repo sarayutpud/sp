@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from "./lib/auth";
 import { CompetitionsPage } from "./pages/CompetitionsPage";
 import { GamesPage } from "./pages/GamesPage";
 import { GuidePage } from "./pages/GuidePage";
+import { ImportPlayersPage } from "./pages/ImportPlayersPage";
 import { LoginPage } from "./pages/LoginPage";
 import { PlayersPage } from "./pages/PlayersPage";
 import { PublicReportPage } from "./pages/PublicReportPage";
@@ -42,6 +43,7 @@ export function App() {
             <Route path="competitions" element={<CompetitionsPage />} />
             <Route path="teams" element={<TeamsPage />} />
             <Route path="players" element={<PlayersPage />} />
+            <Route path="import" element={<ImportPlayersPage />} />
             <Route path="rosters" element={<RostersPage />} />
             <Route path="games" element={<GamesPage />} />
             <Route path="reports" element={<ReportsPage />} />

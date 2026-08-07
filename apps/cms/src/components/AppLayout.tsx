@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { COURTSIDE_DOWNLOAD_URL } from "../lib/constants";
 
 const NAV = [
   { to: "/", label: "เริ่มต้น / คู่มือ", mark: "ค", end: true },
   { to: "/competitions", label: "การแข่งขัน", mark: "ล" },
   { to: "/teams", label: "ทีม", mark: "ท" },
   { to: "/players", label: "ผู้เล่น", mark: "ผ" },
+  { to: "/import", label: "นำเข้า Excel", mark: "น" },
   { to: "/games", label: "แมตช์", mark: "ม" },
   { to: "/reports", label: "รายงาน", mark: "ร" },
   { to: "/rosters", label: "บัญชีฤดูกาล", mark: "ฤ", optional: true },
@@ -40,13 +42,24 @@ export function AppLayout() {
           </div>
         </div>
         <div className="app-user">
+          <a
+            className="btn tiny primary download-app-btn"
+            href={COURTSIDE_DOWNLOAD_URL}
+            target="_blank"
+            rel="noreferrer"
+            title="Setup · MSI · exe ในโฟลเดอร์ Drive"
+          >
+            <span className="download-app-label-full">ดาวน์โหลดแอป</span>
+            <span className="download-app-label-short">แอป</span>
+          </a>
           <span className="app-user-email">{session?.user.email}</span>
           <button
             type="button"
-            className="btn tiny ghost"
+            className="btn tiny ghost signout-btn"
             onClick={() => void signOut()}
           >
-            ออกจากระบบ
+            <span className="signout-full">ออกจากระบบ</span>
+            <span className="signout-short">ออก</span>
           </button>
         </div>
       </header>

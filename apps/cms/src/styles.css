@@ -24,6 +24,10 @@
   --ring: 0 0 0 3px rgba(58, 69, 181, 0.28);
 
   --header-h: 60px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 
   font-family: "Be Vietnam Pro", "Sarabun", "Bahnschrift", system-ui, sans-serif;
   color: var(--text);
@@ -229,9 +233,11 @@ textarea {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-  height: var(--header-h);
-  padding: 0 clamp(0.85rem, 3vw, 1.25rem);
+  gap: 0.55rem;
+  min-height: var(--header-h);
+  height: calc(var(--header-h) + var(--safe-top));
+  padding: var(--safe-top) max(0.65rem, var(--safe-right)) 0
+    max(0.65rem, var(--safe-left));
   background: linear-gradient(100deg, var(--navy-deep), var(--indigo));
   color: #fff;
   border-bottom: 3px solid var(--yellow);
@@ -283,8 +289,9 @@ textarea {
 .app-user {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.4rem;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .app-user-email {
@@ -294,6 +301,16 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.download-app-btn {
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.download-app-label-short,
+.signout-short {
+  display: none;
 }
 
 /* Hamburger */
@@ -1285,7 +1302,7 @@ a.btn:hover {
   .nav-overlay {
     display: block;
     position: fixed;
-    inset: var(--header-h) 0 0 0;
+    inset: calc(var(--header-h) + var(--safe-top)) 0 0 0;
     background: rgba(15, 22, 84, 0.45);
     z-index: 40;
     animation: fadeIn 0.2s ease both;
@@ -1293,10 +1310,11 @@ a.btn:hover {
 
   .app-nav {
     position: fixed;
-    top: var(--header-h);
+    top: calc(var(--header-h) + var(--safe-top));
     left: 0;
     bottom: 0;
-    width: min(78vw, 300px);
+    width: min(86vw, 300px);
+    padding-bottom: var(--safe-bottom);
     z-index: 50;
     border-right: 1px solid var(--line);
     box-shadow: var(--shadow-lg);
@@ -1310,8 +1328,9 @@ a.btn:hover {
   }
 
   .nav-link {
-    padding: 0.8rem 0.9rem;
+    padding: 0.9rem 1rem;
     font-size: 1rem;
+    min-height: 48px;
   }
 
   .grid-2 {
@@ -1324,8 +1343,81 @@ a.btn:hover {
     display: none;
   }
 
+  .download-app-label-full,
+  .signout-full {
+    display: none;
+  }
+
+  .download-app-label-short,
+  .signout-short {
+    display: inline;
+  }
+
   .app-brand span {
     display: none;
+  }
+
+  .app-logo {
+    width: 34px;
+    height: 34px;
+  }
+
+  .app-brand strong {
+    font-size: 1rem;
+  }
+
+  .app-user {
+    gap: 0.3rem;
+  }
+
+  .app-user .btn.tiny {
+    min-height: 40px;
+    padding: 0.35rem 0.55rem;
+  }
+
+  .app-main {
+    padding: 0.85rem 0.75rem calc(1.25rem + var(--safe-bottom));
+  }
+
+  .page-head {
+    margin-bottom: 0.85rem;
+  }
+
+  .page-head h1 {
+    font-size: 1.25rem;
+  }
+
+  .page-head .muted {
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+
+  .panel {
+    padding: 0.85rem 0.8rem;
+  }
+
+  .import-toolbar .btn,
+  .import-actions .btn,
+  .wipe-actions .btn,
+  .danger-panel > .btn {
+    flex: 1 1 100%;
+    width: 100%;
+    min-height: 44px;
+    white-space: normal;
+  }
+
+  .wipe-confirm .field-inline {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  .wipe-confirm input {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  .import-preview-list {
+    max-height: min(50vh, 360px);
   }
 
   .report-toolbar {
@@ -1406,6 +1498,23 @@ a.btn:hover {
   .public-tabs {
     grid-template-columns: 1fr;
   }
+
+  .team-edit-row {
+    grid-template-columns: 1fr;
+  }
+
+  .field-inline,
+  .stack label,
+  .stack input,
+  .stack select,
+  .toolbar select,
+  .toolbar input {
+    font-size: 16px;
+  }
+
+  .field-inline {
+    min-width: 0;
+  }
 }
 
 .banner {
@@ -1421,6 +1530,144 @@ a.btn:hover {
   background: #eef2ff;
   border: 1px solid #c5cae9;
   color: var(--navy);
+}
+
+.banner.ok {
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  color: #1b5e20;
+}
+
+.danger-panel {
+  border-color: rgba(229, 57, 53, 0.35);
+}
+
+.danger-panel h2 {
+  color: var(--red);
+}
+
+.danger-text {
+  color: var(--red);
+  font-weight: 600;
+}
+
+.wipe-summary {
+  margin: 0.5rem 0 1rem;
+}
+
+.wipe-confirm {
+  margin-top: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  background: #fff8f8;
+  border: 1px solid rgba(229, 57, 53, 0.25);
+}
+
+.wipe-confirm code {
+  font-weight: 700;
+  color: var(--red);
+}
+
+.import-toolbar,
+.import-actions,
+.wipe-actions {
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: stretch;
+}
+
+.file-pick-btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-name-chip {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-preview-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+  max-height: min(55vh, 420px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.import-preview-item {
+  margin: 0;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+}
+
+.import-preview-item.bad {
+  border-color: rgba(229, 57, 53, 0.35);
+  background: #fff8f8;
+}
+
+.import-preview-top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.import-jersey {
+  font-weight: 800;
+  color: var(--navy);
+  font-variant-numeric: tabular-nums;
+}
+
+.import-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.95rem;
+}
+
+.import-preview-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.ok-chip {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ok);
+}
+
+.guide-download-box {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--panel-soft);
+  border: 1px solid #e0e4f5;
+}
+
+.guide-download-box .btn {
+  margin-bottom: 0.5rem;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 0.85rem;
 }
 
 .banner.warn {

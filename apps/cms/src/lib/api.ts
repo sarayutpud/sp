@@ -281,8 +281,233 @@ export async function updateTeam(
 }
 
 export async function deleteTeam(id: string) {
+  const { data: players, error: playersErr } = await supabase
+    .from("players")
+    .select("id")
+    .eq("team_id", id);
+  if (playersErr) throw playersErr;
+  const playerIds = (players ?? []).map((p) => p.id as string);
+
+  if (playerIds.length > 0) {
+    const { error: rosterErr } = await supabase
+      .from("game_rosters")
+      .delete()
+      .in("player_id", playerIds);
+    if (rosterErr) throw rosterErr;
+
+    const { error: onCourtErr } = await supabase
+      .from("on_court")
+      .delete()
+      .in("player_id", playerIds);
+    if (onCourtErr) throw onCourtErr;
+
+    const { error: seasonErr } = await supabase
+      .from("rosters")
+      .delete()
+      .in("player_id", playerIds);
+    if (seasonErr) throw seasonErr;
+
+    const { error: snapErr } = await supabase
+      .from("box_score_snapshots")
+      .delete()
+      .in("player_id", playerIds);
+    if (snapErr) throw snapErr;
+
+    const { error: pbpErr } = await supabase
+      .from("play_by_play")
+      .update({ player_id: null })
+      .in("player_id", playerIds);
+    if (pbpErr) throw pbpErr;
+
+    const { error: delPlayersErr } = await supabase
+      .from("players")
+      .delete()
+      .in("id", playerIds);
+    if (delPlayersErr) throw delPlayersErr;
+  }
+
   const { error } = await supabase.from("teams").delete().eq("id", id);
-  if (error) throw error;
+  if (error) {
+    if (error.code === "23503") {
+      throw new Error(
+        "ลบทีมไม่ได้เพราะยังมีแมตช์อ้างอิงทีมนี้ — ลบแมตช์ที่เกี่ยวข้องก่อน หรือใช้ล้างระบบที่หน้านำเข้า",
+      );
+    }
+    throw error;
+  }
+}
+
+export type WipeSummary = {
+  games: number;
+  players: number;
+  teams: number;
+  seasonRosters: number;
+};
+
+/** Count rows that wipeAllTeamsPlayersAndGames will remove. */
+export async function fetchWipeSummary(): Promise<WipeSummary> {
+  const [games, players, teams, seasonRosters] = await Promise.all([
+    supabase.from("games").select("id", { count: "exact", head: true }),
+    supabase.from("players").select("id", { count: "exact", head: true }),
+    supabase.from("teams").select("id", { count: "exact", head: true }),
+    supabase.from("rosters").select("id", { count: "exact", head: true }),
+  ]);
+  for (const r of [games, players, teams, seasonRosters]) {
+    if (r.error) throw r.error;
+  }
+  return {
+    games: games.count ?? 0,
+    players: players.count ?? 0,
+    teams: teams.count ?? 0,
+    seasonRosters: seasonRosters.count ?? 0,
+  };
+}
+
+/**
+ * Wipe all matches, then season rosters, players, and teams.
+ * Does not touch competitions / orgs / venues.
+ */
+export async function wipeAllTeamsPlayersAndGames(): Promise<WipeSummary> {
+  const before = await fetchWipeSummary();
+
+  const { data: gameRows, error: gameListErr } = await supabase
+    .from("games")
+    .select("id");
+  if (gameListErr) throw gameListErr;
+  const gameIds = (gameRows ?? []).map((g) => g.id as string);
+  if (gameIds.length > 0) {
+    const { error: deviceErr } = await supabase
+      .from("device_registry")
+      .update({ game_id: null })
+      .in("game_id", gameIds);
+    if (deviceErr) throw deviceErr;
+
+    const { error: delGamesErr } = await supabase
+      .from("games")
+      .delete()
+      .in("id", gameIds);
+    if (delGamesErr) throw delGamesErr;
+  }
+
+  const { error: seasonErr } = await supabase
+    .from("rosters")
+    .delete()
+    .neq("id", "00000000-0000-0000-0000-000000000000");
+  if (seasonErr) throw seasonErr;
+
+  const { error: playersErr } = await supabase
+    .from("players")
+    .delete()
+    .neq("id", "00000000-0000-0000-0000-000000000000");
+  if (playersErr) throw playersErr;
+
+  const { error: teamsErr } = await supabase
+    .from("teams")
+    .delete()
+    .neq("id", "00000000-0000-0000-0000-000000000000");
+  if (teamsErr) throw teamsErr;
+
+  return before;
+}
+
+export type ImportPlayerRow = {
+  jersey: string;
+  name: string;
+  team: string;
+};
+
+export type ImportPlayersResult = {
+  teamsCreated: number;
+  playersCreated: number;
+  playersUpdated: number;
+  skipped: number;
+};
+
+/** Upsert players by team name + jersey number; create missing teams. */
+export async function importPlayersFromRows(
+  rows: ImportPlayerRow[],
+): Promise<ImportPlayersResult> {
+  const cleaned = rows
+    .map((r) => ({
+      jersey: String(r.jersey ?? "").trim(),
+      name: String(r.name ?? "").trim(),
+      team: String(r.team ?? "").trim(),
+    }))
+    .filter((r) => r.jersey && r.name && r.team);
+
+  const result: ImportPlayersResult = {
+    teamsCreated: 0,
+    playersCreated: 0,
+    playersUpdated: 0,
+    skipped: rows.length - cleaned.length,
+  };
+  if (cleaned.length === 0) return result;
+
+  const teams = await fetchTeams();
+  const teamByName = new Map(
+    teams.map((t) => [t.name.trim().toLowerCase(), t]),
+  );
+
+  const ensureTeam = async (teamName: string): Promise<Team> => {
+    const key = teamName.toLowerCase();
+    const existing = teamByName.get(key);
+    if (existing) return existing;
+    const created = await createTeam({ name: teamName });
+    teamByName.set(key, created);
+    result.teamsCreated += 1;
+    return created;
+  };
+
+  const byTeam = new Map<string, ImportPlayerRow[]>();
+  for (const row of cleaned) {
+    const list = byTeam.get(row.team) ?? [];
+    list.push(row);
+    byTeam.set(row.team, list);
+  }
+
+  for (const [teamName, teamRows] of byTeam) {
+    const team = await ensureTeam(teamName);
+    const { data: existingPlayers, error } = await supabase
+      .from("players")
+      .select("id,jersey_number,display_name")
+      .eq("team_id", team.id);
+    if (error) throw error;
+    const byJersey = new Map(
+      (existingPlayers ?? []).map((p) => [
+        String(p.jersey_number ?? "").trim(),
+        p,
+      ]),
+    );
+
+    for (const row of teamRows) {
+      const hit = byJersey.get(row.jersey);
+      if (hit) {
+        if (hit.display_name !== row.name) {
+          await updatePlayer(hit.id as string, {
+            display_name: row.name,
+            jersey_number: row.jersey,
+          });
+          result.playersUpdated += 1;
+        } else {
+          result.skipped += 1;
+        }
+      } else {
+        await createPlayer({
+          team_id: team.id,
+          display_name: row.name,
+          jersey_number: row.jersey,
+        });
+        result.playersCreated += 1;
+        byJersey.set(row.jersey, {
+          id: "new",
+          jersey_number: row.jersey,
+          display_name: row.name,
+        });
+      }
+    }
+  }
+
+  return result;
 }
 
 export async function updateGame(

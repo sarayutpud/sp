@@ -173,7 +173,7 @@ export function TeamsPage() {
                         onClick={() => {
                           if (
                             window.confirm(
-                              `ลบทีม?\n\n${t.name}\n\nลบได้เมื่อยังไม่มีผู้เล่น/แมตช์อ้างอิง`,
+                              `ลบทีม?\n\n${t.name}\n\nจะลบผู้เล่นของทีมนี้ด้วย · ลบไม่ได้ถ้ายังมีแมตช์อ้างอิงทีม`,
                             )
                           ) {
                             delMut.mutate(t.id);

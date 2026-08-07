@@ -12,6 +12,7 @@ import {
   totalsCells,
   venueDateLine,
 } from "./fiba-shared";
+import { registerThaiFont, THAI_PDF_FONT } from "./thai-font";
 
 type DocWithTable = jsPDF & { lastAutoTable?: { finalY: number } };
 
@@ -70,12 +71,13 @@ function drawMatchHeader(doc: jsPDF, box: MatchBoxScore): number {
   doc.rect(0, 14, pageW, 1.2, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(13);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(THAI_PDF_FONT, "bold");
   doc.text("FIBA Box Score", pageW / 2, 9.5, { align: "center" });
 
   let y = 21;
   doc.setTextColor(...FIBA_COLORS.navyRgb);
   doc.setFontSize(11);
+  doc.setFont(THAI_PDF_FONT, "bold");
   doc.text(box.meta.tournament ?? "Competition", pageW / 2, y, {
     align: "center",
   });
@@ -83,7 +85,7 @@ function drawMatchHeader(doc: jsPDF, box: MatchBoxScore): number {
 
   const venue = venueDateLine(box);
   if (venue) {
-    doc.setFont("helvetica", "normal");
+    doc.setFont(THAI_PDF_FONT, "normal");
     doc.setFontSize(8);
     doc.setTextColor(90, 98, 117);
     doc.text(venue, pageW / 2, y, { align: "center" });
@@ -122,10 +124,10 @@ function drawMatchHeader(doc: jsPDF, box: MatchBoxScore): number {
   doc.setFontSize(7.5);
   let iy = y + 4.5;
   for (const [label, value] of info) {
-    doc.setFont("helvetica", "bold");
+    doc.setFont(THAI_PDF_FONT, "bold");
     doc.setTextColor(...FIBA_COLORS.navyRgb);
     doc.text(label, cardX + 3, iy);
-    doc.setFont("helvetica", "normal");
+    doc.setFont(THAI_PDF_FONT, "normal");
     doc.setTextColor(30, 30, 30);
     doc.text(value, cardX + 28, iy, {
       maxWidth: cardW - 32,
@@ -134,7 +136,7 @@ function drawMatchHeader(doc: jsPDF, box: MatchBoxScore): number {
   }
   y += cardH + 5;
 
-  doc.setFont("helvetica", "bold");
+  doc.setFont(THAI_PDF_FONT, "bold");
   doc.setFontSize(11);
   doc.setTextColor(...FIBA_COLORS.navyRgb);
   doc.text(matchTitleLine(box), pageW / 2, y, { align: "center" });
@@ -142,7 +144,7 @@ function drawMatchHeader(doc: jsPDF, box: MatchBoxScore): number {
 
   const qp = quarterParen(box);
   if (qp) {
-    doc.setFont("helvetica", "normal");
+    doc.setFont(THAI_PDF_FONT, "normal");
     doc.setFontSize(8);
     doc.setTextColor(90, 98, 117);
     doc.text(qp, pageW / 2, y, { align: "center" });
@@ -151,6 +153,7 @@ function drawMatchHeader(doc: jsPDF, box: MatchBoxScore): number {
 
   const officials = officialsLine(box);
   if (officials) {
+    doc.setFont(THAI_PDF_FONT, "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(90, 98, 117);
     doc.text(officials, pageW / 2, y, {
@@ -193,7 +196,7 @@ function addTeamTable(
       ],
     ],
     theme: "plain",
-    styles: { cellPadding: 0 },
+    styles: { cellPadding: 0, font: THAI_PDF_FONT },
   });
 
   const afterBand = doc.lastAutoTable?.finalY ?? startY + 6;
@@ -205,6 +208,7 @@ function addTeamTable(
     body: teamBody(team),
     theme: "grid",
     styles: {
+      font: THAI_PDF_FONT,
       fontSize: 5.5,
       cellPadding: 0.9,
       lineColor: [197, 202, 216],
@@ -212,14 +216,15 @@ function addTeamTable(
       textColor: [26, 26, 26],
       overflow: "linebreak",
       valign: "middle",
-      halign: "center",
+     halign: "center",
     },
     headStyles: {
+      font: THAI_PDF_FONT,
       fillColor: FIBA_COLORS.headerBgRgb,
       textColor: FIBA_COLORS.navyRgb,
       fontStyle: "bold",
       fontSize: 5.5,
-      halign: "center",
+     halign: "center",
       valign: "middle",
     },
     columnStyles: {
@@ -260,6 +265,7 @@ export async function writeFibaBoxScorePdf(
     unit: "mm",
     format: "a4",
   }) as DocWithTable;
+  await registerThaiFont(doc);
 
   let y = drawMatchHeader(doc, box);
   const margin = 10;
@@ -286,12 +292,14 @@ export async function writeFibaBoxScorePdf(
       ],
       theme: "grid",
       styles: {
+        font: THAI_PDF_FONT,
         fontSize: 7,
         cellPadding: 1.2,
         halign: "center",
         lineColor: [197, 202, 216],
       },
       headStyles: {
+        font: THAI_PDF_FONT,
         fillColor: FIBA_COLORS.headerBgRgb,
         textColor: FIBA_COLORS.navyRgb,
         fontStyle: "bold",
@@ -311,11 +319,13 @@ export async function writeFibaBoxScorePdf(
     body: advancedRows(box).map((row) => row.map(String)),
     theme: "grid",
     styles: {
+      font: THAI_PDF_FONT,
       fontSize: 7,
       cellPadding: 1.3,
       lineColor: [197, 202, 216],
     },
     headStyles: {
+      font: THAI_PDF_FONT,
       fillColor: FIBA_COLORS.headerBgRgb,
       textColor: FIBA_COLORS.navyRgb,
       fontStyle: "bold",
@@ -332,7 +342,7 @@ export async function writeFibaBoxScorePdf(
   y = (doc.lastAutoTable?.finalY ?? y) + 5;
   doc.setFontSize(6);
   doc.setTextColor(90, 98, 117);
-  doc.setFont("helvetica", "italic");
+  doc.setFont(THAI_PDF_FONT, "normal");
   const legendLines = doc.splitTextToSize(LEGEND, pageW - margin * 2);
   doc.text(legendLines, margin, y);
 

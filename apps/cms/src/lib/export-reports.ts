@@ -1,5 +1,7 @@
 import type { MatchBoxScore } from "@sp/rules-engine";
 import {
+  registerThaiFont,
+  THAI_PDF_FONT,
   writeFibaBoxScorePdf,
   writeFibaBoxScoreXlsx,
 } from "@sp/report-export";
@@ -93,6 +95,8 @@ export async function downloadZonesPdf(
   }[],
 ) {
   const doc = new jsPDF();
+  await registerThaiFont(doc);
+  doc.setFont(THAI_PDF_FONT, "bold");
   doc.setFontSize(12);
   doc.text(title, 14, 14);
   autoTable(doc, {
@@ -104,6 +108,8 @@ export async function downloadZonesPdf(
       String(z.fga),
       z.pct == null ? "—" : `${(z.pct * 100).toFixed(1)}%`,
     ]),
+    styles: { font: THAI_PDF_FONT, fontSize: 9 },
+    headStyles: { font: THAI_PDF_FONT, fontStyle: "bold" },
   });
   const y =
     (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
@@ -121,7 +127,8 @@ export async function downloadZonesPdf(
         z.pct == null ? "—" : `${(z.pct * 100).toFixed(1)}%`,
       ]),
     ),
-    styles: { fontSize: 8 },
+    styles: { font: THAI_PDF_FONT, fontSize: 8 },
+    headStyles: { font: THAI_PDF_FONT, fontStyle: "bold" },
   });
   downloadBlob(doc.output("blob"), filename);
 }
@@ -155,13 +162,16 @@ export async function downloadSeasonPdf(
   body: string[][],
 ) {
   const doc = new jsPDF({ orientation: "landscape" });
+  await registerThaiFont(doc);
+  doc.setFont(THAI_PDF_FONT, "bold");
   doc.setFontSize(12);
   doc.text(title, 14, 14);
   autoTable(doc, {
     startY: 20,
     head: [headers],
     body,
-    styles: { fontSize: 7 },
+    styles: { font: THAI_PDF_FONT, fontSize: 7 },
+    headStyles: { font: THAI_PDF_FONT, fontStyle: "bold" },
   });
   downloadBlob(doc.output("blob"), filename);
 }
@@ -173,9 +183,12 @@ export async function downloadShotchartPdf(
   summaryLines: string[],
 ) {
   const doc = new jsPDF();
+  await registerThaiFont(doc);
+  doc.setFont(THAI_PDF_FONT, "bold");
   doc.setFontSize(12);
   doc.text(title, 14, 14);
   let y = 22;
+  doc.setFont(THAI_PDF_FONT, "normal");
   doc.setFontSize(9);
   for (const line of summaryLines) {
     doc.text(line, 14, y);
